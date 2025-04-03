@@ -1,0 +1,231 @@
+﻿@page "/coupon"
+@inject CouponService couponService
+@inject MudBlazor.ISnackbar Snackbar
+@inject IJSRuntime JsRuntime
+
+<div class="container mt-4">
+    <!-- Header Section -->
+    <div class="row align-items-center mb-3">
+        <div class="col">
+            <h4>Coupon</h4>
+        </div>
+        <div class="col text-end">
+            <button class="btn btn-primary" @onclick="ShowModal">
+                <i class="fas fa-plus me-2"></i> Create
+            </button>
+        </div>
+    </div>
+
+    <!-- Table Section -->
+    <div class="row">
+        <div class="col">
+            <div class="table-responsive">
+                <MudTable Items="@listCoupon" Dense="@dense" Hover="@hover">
+
+                    <HeaderContent>
+                        <MudTh>CODE</MudTh>
+                        <MudTh>IS PERCENTAGE</MudTh>
+                        <MudTh>AMOUNT</MudTh>
+                        <MudTh>EXPIRY DATE</MudTh>
+                        <MudTh>ACTION</MudTh>
+                    </HeaderContent>
+                    <RowTemplate>
+                        <MudTd DataLabel="Name" Style="width:900px;">@context.Code</MudTd>
+                        <MudTd DataLabel="Name" Style="width:900px;">@context.Type</MudTd>
+                        <MudTd DataLabel="Name" Style="width:900px;">@context.Amount</MudTd>
+                        <MudTd DataLabel="Name" Style="width:900px;">@context.ExpirationDate</MudTd>
+                        <MudTd DataLabel="">
+                            <div class="d-flex justify-content-start">
+                                <button class="btn btn-warning btn-sm me-2" @onclick="() => Edit(context.CouponId)">
+                                    <i class="fas fa-edit"></i>
+                                </button>
+                                <button class="btn btn-danger btn-sm" @onclick="() => Delete(context.CouponId)">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </div>
+                        </MudTd>
+                    </RowTemplate>
+                    <PagerContent>
+                        <MudTablePager />
+                    </PagerContent>
+                </MudTable>
+
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal -->
+    @if (IsModalVisible)
+    {
+        <div class="modal fade show d-block" style="background-color: rgba(0, 0, 0, 0.5);">
+            <div class="modal-dialog">
+                <EditForm Model="Coupon" OnValidSubmit="Save">
+                    <DataAnnotationsValidator />
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title">@ModalTitle</h5>
+                            <button type="button" class="btn-close" @onclick="CloseModal"></button>
+                        </div>
+                        <div class="modal-body">
+                            <div class="mb-3">
+                                <label class="form-label">Code</label>
+                                <input type="text" class="form-control" @bind="Coupon.Code" placeholder="Enter Coupon name">
+                                <ValidationMessage For="@(() => Coupon.Code)" />
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Is Percentage</label>
+                                <select class="form-select" @bind="Coupon.Type">
+                                    <option value="Yes">Yes</option>
+                                    <option value="No">No</option>
+                                </select>
+                                <ValidationMessage For="@(() => Coupon.Type)" />
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Amount</label>
+                                <input type="text" class="form-control" @bind="Coupon.Amount">
+                                <ValidationMessage For="@(() => Coupon.Amount)" />
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Expired Date</label>
+                                <InputDate class="form-control" @bind-Value="Coupon.ExpirationDate" />
+                                <ValidationMessage For="@(() => Coupon.ExpirationDate)" />
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" @onclick="CloseModal">Cancel</button>
+                            <button type="submit" class="btn btn-primary">Save</button>
+                        </div>
+                    </div>
+                </EditForm>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    private bool dense = true;
+    private bool hover = true;
+    private Coupon Coupon = new();
+    private List<Coupon> listCoupon = new();
+    private bool IsModalVisible = false;
+    private string ModalTitle = "Create Coupon";
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        try
+        {
+            listCoupon = await couponService.GetAllCouponsAsync();
+            await Reset();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error loading data: {ex.Message}", Severity.Error);
+        }
+    }
+    private async Task Reset()
+    {
+        IsModalVisible = false;
+        Coupon.CouponId = 0;
+        Coupon.Code = string.Empty;
+        Coupon.Type = "Yes";
+        Coupon.Amount = 0;
+        Coupon.ExpirationDate = DateTime.UtcNow;
+        Coupon.IsActive = true;
+        Coupon.AddedDate = DateTime.UtcNow;
+    }
+
+    private async Task ShowModal()
+    {
+        ModalTitle = "Create Coupon";
+        await Reset();
+        IsModalVisible = true;
+    }
+    private async Task Save()
+    {
+        try
+        {
+            if (Coupon.CouponId == 0)
+            {
+                int value = await couponService.AddCouponAsync(Coupon);
+                if (value > 0)
+                {
+                    Snackbar.Add("Coupon created successfully", Severity.Success);
+                    await LoadData();
+                }
+                else
+                {
+                    Snackbar.Add("Coupon name already exists.", Severity.Info);
+                }
+            }
+            else
+            {
+                bool isUpdated = await couponService.UpdateCouponAsync(Coupon);
+                if (isUpdated == true)
+                {
+                    Snackbar.Add("Coupon updated successfully", Severity.Success);
+                    await LoadData();
+                }
+                else
+                {
+                    Snackbar.Add("Coupon name already exists.", Severity.Info);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error saving Coupon: {ex.Message}", Severity.Success);
+        }
+    }
+    private async Task Edit(int id)
+    {
+        try
+        {
+            ModalTitle = "Edit Coupon";
+            Coupon = await couponService.GetCouponByIdAsync(id);
+            IsModalVisible = true;
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error fetching Coupon: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task Delete(int id)
+    {
+        try
+        {
+            // Show a confirmation dialog to the user
+            bool confirmed = await JsRuntime.InvokeAsync<bool>("confirm", "Are you sure you want to delete this Coupon?");
+
+            if (!confirmed)
+            {
+                return; // User canceled the action
+            }
+
+            // Attempt to delete the Coupon
+            bool isDeleted = await couponService.DeleteCouponAsync(id);
+
+            if (isDeleted == true)
+            {
+                Snackbar.Add("Coupon deleted successfully.", Severity.Success);
+                await LoadData(); // Reload the data after successful deletion
+            }
+            else
+            {
+                Snackbar.Add("Coupon cannot be deleted as it is being used.", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"An error occurred while deleting the Coupon: {ex.Message}", Severity.Error);
+        }
+    }
+    private async Task CloseModal()
+    {
+        IsModalVisible = false;
+    }
+}

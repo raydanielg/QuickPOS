@@ -1,0 +1,206 @@
+﻿@inject CompanyService companyService
+@inject TaxService taxService
+@inject AccountLedgerService accountledgerService
+@inject SalesInvoiceService salesinvoiceService
+@inject IPrintingService PrintingService
+@inject MudBlazor.ISnackbar Snackbar
+@inject IJSRuntime JsRuntime
+@inject NavigationManager NavigationManager
+<div id="print-content" class="container mt-4">
+    <div class="d-flex justify-content-between mb-3">
+        <button class="btn btn-success btn-sm" @onclick="@(_ => PrintingService.Print("printable-form", PrintType.Html))">
+            <i class="fas fa-print me-1"></i> Print
+        </button>
+        <button class="btn btn-danger btn-sm" @onclick="PrintDiv">
+            <i class="fas fa-file-pdf me-1"></i> PDF
+        </button>
+        <button class="btn-close" @onclick="Close"></button>
+    </div>
+
+    <div id="printable-form" class="border rounded p-4 shadow-sm">
+        <div class="text-center mb-4">
+            @if (company?.Logo != null)
+            {
+                <img src="@company?.Logo" class="img-fluid mb-3" alt="Logo" style="max-height: 80px;">
+            }
+            <h4 class="fw-bold">@company?.CompanyName</h4>
+            <p class="mb-1">@company?.Address</p>
+            <p class="mb-1">GSTIN NO: @company?.GST</p>
+            <p class="mb-0">Email: @company?.Email</p>
+            <p class="mb-0">Phone No: @company?.PhoneNo</p>
+        </div>
+
+        <div class="row mb-3">
+    <div class="col-12 col-md-6">
+        <!-- Use col-12 for small screens and col-md-6 for medium and larger screens -->
+        <p><strong>Invoice No:</strong> @master?.VoucherNo</p>
+        <p><strong>Date:</strong> @master?.Date</p>
+        <p><strong>Time:</strong> @time</p>
+    </div>
+    <div class="col-12 col-md-6 text-md-end" style="margin-top:-124px;">
+        <!-- Use col-12 for small screens and col-md-6 for medium and larger screens, with right alignment on medium and larger screens -->
+        <p><strong>Name:</strong> @ledger?.LedgerName</p>
+        <p><strong>Mobile:</strong> @ledger?.Phone</p>
+        <p><strong>Address:</strong> @ledger?.Address</p>
+    </div>
+</div>
+
+
+
+        <div class="row mb-3">
+        <table class="table table-striped table-bordered table-hover">
+            <thead class="table-light">
+                <tr>
+                    <th>#</th>
+                    <th>Item</th>
+                    <th>Qty</th>
+                    <th>Rate</th>
+                    <th>Amount</th>
+                </tr>
+            </thead>
+            <tbody>
+                @if (productList != null && productList.Any())
+                {
+                    int snNo = 0;
+                    @foreach (var item in productList)
+                    {
+                        snNo++;
+                        <tr>
+                            <td>@snNo</td>
+                            <td>@item.ProductName</td>
+                            <td>@item.Qty</td>
+                            <td>@item.SalesRate</td>
+                            <td>@item.Amount</td>
+                        </tr>
+                    }
+                }
+                else
+                {
+                    <tr>
+                        <td colspan="5" class="text-center">No products found.</td>
+                    </tr>
+                }
+                <tr>
+                    <td colspan="4" class="text-end fw-bold">Taxable Amount:</td>
+                    <td>@master?.NetAmounts</td>
+                </tr>
+                <tr>
+                    <td colspan="4" class="text-end fw-bold">Tax Amount:</td>
+                    <td>@master?.TotalTax</td>
+                </tr>
+                    <tr>
+                        <td colspan="4" class="text-end fw-bold">Discount Amount:</td>
+                        <td>@master?.BillDiscount</td>
+                    </tr>
+                <tr>
+                    <td colspan="4" class="text-end fw-bold">TOTAL:</td>
+                    <td>@master?.GrandTotal</td>
+                </tr>
+                <tr>
+                    <td colspan="4" class="text-end">ROUND OFF:</td>
+                    <td>@master?.RoundOff</td>
+                </tr>
+                <tr>
+                    @if (master.PaymentId == 1)
+                    {
+                        <td colspan="4" class="text-end">
+                            BY CASH:
+                        </td>
+                        <td>@master?.PayAmount</td>
+                    }
+                    else if (master.PaymentId == 2)
+                    {
+                        <td colspan="4" class="text-end">
+                            BY CARD:
+                        </td>
+                        <td>@master?.PayAmount</td>
+                    }
+                    else if (master.PaymentId == 3)
+                    {
+                        <td colspan="4" class="text-end">
+                            BY UPI:
+                        </td>
+                        <td>@master?.PayAmount</td>
+                    }
+                    else
+                    {
+
+                    }
+                </tr>
+            </tbody>
+        </table>
+        </div>
+
+        <div class="text-center border-top pt-3 mt-4">
+            <p><strong>Amount in Words:</strong> @strNumberToWords</p>
+        </div>
+
+        <div class="text-center mt-4">
+            <h5>Thank you for shopping with us!</h5>
+        </div>
+    </div>
+</div>
+@code {
+    [Parameter] public EventCallback<int> OnButtonClick { get; set; }
+    [Parameter] public int id { get; set; }
+    private SalesMaster master = new SalesMaster();
+    private AccountLedger ledger = new AccountLedger();
+    private List<ProductView> productList = new List<ProductView>();
+    private List<Tax> listTax;
+    private bool _isFirstRender = true;
+    private CompanyView company;
+    private string strNumberToWords;
+    private string time;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        try
+        {
+            time = DateTime.Now.ToString("hh:mm tt");
+            company = await companyService.GetAllCompaniesByIdAsync(1);
+            if (company == null)
+            {
+                Snackbar.Add("Company data could not be loaded.", Severity.Error);
+                return;
+            }
+
+            master = await salesinvoiceService.GetByIdAsync(id);
+            productList = await salesinvoiceService.GetAllBySalesMasterDetails(id);
+            listTax = await taxService.GetAllTaxsAsync();
+
+            if (master != null)
+            {
+                ledger = await accountledgerService.GetAccountLedgerByIdAsync(master.LedgerId);
+                strNumberToWords = NumberToWords.ConvertAmount(Convert.ToDouble(master.GrandTotal.ToString()));
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error loading data: {ex.Message}", Severity.Error);
+        }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender && _isFirstRender)
+        {
+            _isFirstRender = false; // Ensure this only executes once
+            await PrintingService.Print("printable-form", PrintType.Html);
+        }
+    }
+
+    private async Task PrintDiv()
+    {
+        await JsRuntime.InvokeVoidAsync("printDiv", "printable-form");
+    }
+
+    private async void Close()
+    {
+        await OnButtonClick.InvokeAsync(0);
+    }
+}

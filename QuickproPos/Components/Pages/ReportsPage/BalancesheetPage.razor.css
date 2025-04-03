@@ -1,0 +1,35 @@
+﻿table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 20px auto;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+}
+
+th, td {
+    padding: 12px;
+    text-align: left;
+    border: 1px solid #ddd;
+}
+
+th {
+    background-color: #f4f4f4;
+}
+
+tr:nth-child(even) {
+    background-color: #f9f9f9;
+}
+
+.header {
+    font-weight: bold;
+}
+
+.total {
+    font-weight: bold;
+    text-align: right;
+}
+
+.net-profit {
+    font-weight: bold;
+    background-color: #e7f4e7;
+    color: #2e7d32;
+}

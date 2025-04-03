@@ -1,0 +1,221 @@
+﻿@inject FinancialYearService finalYearService
+@inject MudBlazor.ISnackbar Snackbar
+@inject IJSRuntime JsRuntime
+
+<div class="container mt-4">
+    <!-- Header Section -->
+    <div class="row align-items-center mb-3">
+        <div class="col">
+            <h4>Financial Year</h4>
+        </div>
+        <div class="col text-end">
+            <button class="btn btn-primary" @onclick="ShowModal">
+                <i class="fas fa-plus me-2"></i> Create
+            </button>
+        </div>
+    </div>
+
+    <!-- Table Section -->
+    <div class="row">
+        <div class="col">
+            <div class="table-responsive">
+                <MudTable Items="@listFinancialYear" Dense="@dense" Hover="@hover">
+
+                    <HeaderContent>
+                        <MudTh>FROM DATE</MudTh>
+                        <MudTh>TO DATE</MudTh>
+                        <MudTh>FISCAL YEAR</MudTh>
+                        <MudTh>ACTION</MudTh>
+                    </HeaderContent>
+                    <RowTemplate>
+                        <MudTd DataLabel="FromDate" Style="width:400px;">@context.FromDate</MudTd>
+                        <MudTd DataLabel="ToDate" Style="width:400px;">@context.ToDate</MudTd>
+                        <MudTd DataLabel="FiscalYear" Style="width:200px;">@context.FiscalYear</MudTd>
+                        <MudTd DataLabel="">
+                            <div class="d-flex justify-content-start">
+                                <button class="btn btn-warning btn-sm me-2" @onclick="() => Edit(context.FinancialYearId)">
+                                    <i class="fas fa-calendar-alt"></i>Change Fiscal Year
+                                </button>
+                            </div>
+
+                        </MudTd>
+                    </RowTemplate>
+                    <PagerContent>
+                        <MudTablePager />
+                    </PagerContent>
+                </MudTable>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal -->
+    @if (IsModalVisible)
+    {
+        <div class="modal fade show d-block" style="background-color: rgba(0, 0, 0, 0.5);">
+            <div class="modal-dialog">
+                <EditForm Model="FinancialYear" OnValidSubmit="Save">
+                    <DataAnnotationsValidator />
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title">@ModalTitle</h5>
+                            <button type="button" class="btn-close" @onclick="CloseModal"></button>
+                        </div>
+                        <div class="modal-body">
+                            <div class="mb-3">
+                                <label for="FromDate" class="form-label">From Date</label>
+                                <InputDate class="form-control" @bind-Value="@FinancialYear.FromDate" />
+                                <ValidationMessage For="@(() => FinancialYear.FromDate)" />
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="ToDate" class="form-label">To Date</label>
+                                <InputDate class="form-control" @bind-Value="@FinancialYear.ToDate" />
+                                <ValidationMessage For="@(() => FinancialYear.ToDate)" />
+                            </div>
+                            <div class="mb-3">
+                                <label for="FiscalYear" class="form-label">Fiscal Year</label>
+                                <input type="text" id="TaxName" class="form-control" @bind="FinancialYear.FiscalYear" placeholder="Enter fiscal year">
+                                <ValidationMessage For="@(() => FinancialYear.FiscalYear)" />
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" @onclick="CloseModal">Cancel</button>
+                            <button type="submit" class="btn btn-primary">Save</button>
+                        </div>
+                    </div>
+                </EditForm>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    private bool dense = true;
+    private bool hover = true;
+    private FinancialYear FinancialYear = new();
+    private List<FinancialYear> listFinancialYear = new();
+    private bool IsModalVisible = false;
+    private string ModalTitle = "Create Financial Year";
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        try
+        {
+            listFinancialYear = await finalYearService.GetAllFinancialYearsAsync();
+            await Reset();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error loading data: {ex.Message}", Severity.Error);
+        }
+    }
+    private async Task Reset()
+    {
+        IsModalVisible = false;
+        FinancialYear.FinancialYearId = 0;
+        FinancialYear.FromDate = DateTime.UtcNow;
+        FinancialYear.ToDate = DateTime.UtcNow;
+        FinancialYear.FiscalYear = string.Empty;
+        FinancialYear.AddedDate = DateTime.UtcNow;
+    }
+
+    private async Task ShowModal()
+    {
+        ModalTitle = "Create FinancialYear";
+        await Reset();
+        IsModalVisible = true;
+    }
+
+    private async Task Edit(int id)
+    {
+        try
+        {
+            ModalTitle = "Edit FinancialYear";
+            FinancialYear = await finalYearService.GetFinancialYearByIdAsync(id);
+            bool isUpdated = await finalYearService.UpdateFinancialYearAsync(FinancialYear);
+            if (isUpdated == true)
+            {
+                Snackbar.Add("Successfully changed fiscal year.", Severity.Success);
+                await LoadData();
+            }
+            else
+            {
+                Snackbar.Add("failed.", Severity.Info);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error fetching FinancialYear: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task Delete(int id)
+    {
+        try
+        {
+            // Show a confirmation dialog to the user
+            bool confirmed = await JsRuntime.InvokeAsync<bool>("confirm", "Are you sure you want to delete this FinancialYear?");
+
+            if (!confirmed)
+            {
+                return; // User canceled the action
+            }
+
+            // Attempt to delete the FinancialYear
+            bool isDeleted = await finalYearService.DeleteFinancialYearAsync(id);
+
+            if (isDeleted == true)
+            {
+                Snackbar.Add("FinancialYear deleted successfully.", Severity.Success);
+                await LoadData(); // Reload the data after successful deletion
+            }
+            else
+            {
+                Snackbar.Add("FinancialYear cannot be deleted as it is being used.", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"An error occurred while deleting the FinancialYear: {ex.Message}", Severity.Error);
+        }
+    }
+
+
+    private async Task CloseModal()
+    {
+        IsModalVisible = false;
+    }
+
+    private async Task Save()
+    {
+        try
+        {
+            if (FinancialYear.FinancialYearId == 0)
+            {
+                int value = await finalYearService.AddFinancialYearAsync(FinancialYear);
+                if (value > 0)
+                {
+                    Snackbar.Add("FinancialYear created successfully", Severity.Success);
+                    await LoadData();
+                }
+                else
+                {
+                    Snackbar.Add("FinancialYear name already exists.", Severity.Info);
+                }
+            }
+            else
+            {
+                
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error saving FinancialYear: {ex.Message}", Severity.Success);
+        }
+    }
+}

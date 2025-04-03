@@ -1,0 +1,112 @@
+﻿@page "/customer"
+@inject AccountLedgerService accountLedgerService
+@inject MudBlazor.ISnackbar Snackbar
+@inject IJSRuntime JsRuntime
+
+<div class="container mt-4">
+    <!-- Header Section -->
+    <div class="row align-items-center mb-3">
+        <div class="col">
+            <h4>Customer</h4>
+        </div>
+        <div class="col text-end">
+            <a class="btn btn-primary" href="/customer/add">
+                <i class="fas fa-plus me-2"></i> Create
+            </a>
+        </div>
+    </div>
+
+    <!-- Table Section -->
+    <div class="row">
+        <div class="col">
+            <div class="table-responsive">
+                <MudTable Items="@listAccountLedger" Dense="@dense" Hover="@hover">
+
+                    <HeaderContent>
+                        <MudTh>CUSTOMER NAME</MudTh>
+                        <MudTh>EMAIL</MudTh>
+                        <MudTh>PHONE</MudTh>
+                        <MudTh>ADDRESS</MudTh>
+                        <MudTh>OPENING BALANCE</MudTh>
+                        <MudTh>DR/CR</MudTh>
+                        <MudTh></MudTh>
+                    </HeaderContent>
+                    <RowTemplate>
+                        <MudTd DataLabel="LedgerName" Style="width:300px;">@context.LedgerName</MudTd>
+                        <MudTd DataLabel="Email" Style="width:140px;">@context.Email</MudTd>
+                        <MudTd DataLabel="Phone" Style="width:140px;">@context.Phone</MudTd>
+                        <MudTd DataLabel="Address" Style="width:240px;">@context.Address</MudTd>
+                        <MudTd DataLabel="OpeningBalance" Style="width:180px;">@context.OpeningBalance</MudTd>
+                        <MudTd DataLabel="CrOrDr">@context.CrOrDr</MudTd>
+                        <MudTd DataLabel="">
+                            <div class="d-flex justify-content-start">
+                                <a class="btn btn-warning btn-sm me-2" href="/customer/@context.LedgerId">
+                                    <i class="fas fa-edit"></i>
+                                </a>
+                                <button class="btn btn-danger btn-sm" @onclick="() => Delete(context.LedgerId)">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </div>
+                        </MudTd>
+                    </RowTemplate>
+                    <PagerContent>
+                        <MudTablePager />
+                    </PagerContent>
+                </MudTable>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private bool dense = true;
+    private bool hover = true;
+    private List<AccountLedgerView> listAccountLedger = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        try
+        {
+            listAccountLedger = await accountLedgerService.GetAllAccountLedgersByIdAsync(26);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error loading data: {ex.Message}", Severity.Error);
+        }
+    }
+    private async Task Delete(int id)
+    {
+        try
+        {
+            // Show a confirmation dialog to the user
+            bool confirmed = await JsRuntime.InvokeAsync<bool>("confirm", "Are you sure you want to delete this Customer?");
+
+            if (!confirmed)
+            {
+                return; // User canceled the action
+            }
+
+            // Attempt to delete the Customer
+            bool isDeleted = await accountLedgerService.DeleteAccountLedgerAsync(id);
+
+            if (isDeleted == true)
+            {
+                Snackbar.Add("Customer deleted successfully.", Severity.Success);
+                await LoadData(); // Reload the data after successful deletion
+            }
+            else
+            {
+                Snackbar.Add("Customer cannot be deleted as it is being used.", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"An error occurred while deleting the Customer: {ex.Message}", Severity.Error);
+        }
+    }
+}

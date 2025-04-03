@@ -1,0 +1,195 @@
+﻿@page "/quotation/tiles/details/{id:int}"
+@inject CompanyService companyService
+@inject AccountLedgerService accountledgerService
+@inject TilesQuotationService tilesquotationService
+@inject IPrintingService PrintingService
+@inject MudBlazor.ISnackbar Snackbar
+@inject IJSRuntime JsRuntime
+@inject NavigationManager NavigationManager
+
+<div class="container mt-4">
+    <div class="py-4">
+        <!-- Title Section -->
+        <div class="row mb-3">
+            <div class="col-12">
+                <h4 class="text-primary d-flex align-items-center">
+                    <i class="fas fa-file-invoice-dollar me-2"></i> Tiles Quotation | Print
+                </h4>
+            </div>
+        </div>
+
+        <!-- Invoice Action Section -->
+        <div class="card mb-4 shadow-sm">
+            <div class="card-body">
+                <ul class="list-inline">
+                    <li class="list-inline-item">
+                        <a href="/quotation/tiles/@master.TileQuotationid" class="btn btn-sm btn-primary">
+                            <i class="fas fa-edit me-1"></i> Edit
+                        </a>
+                    </li>
+                    <li class="list-inline-item">
+                        <button class="btn btn-sm btn-success" @onclick="@(_ => PrintingService.Print("printable-form", PrintType.Html))">
+                            <i class="fas fa-print me-1"></i> Print
+                        </button>
+                    </li>
+                    <li class="list-inline-item">
+                        <button class="btn btn-sm btn-danger" @onclick="()=>PrintDiv()">
+                            <i class="fas fa-file-pdf me-1"></i> PDF
+                        </button>
+                    </li>
+                    <li class="list-inline-item">
+                        <a href="/sales/tiles/@master.TileQuotationid" class="btn btn-sm btn-warning">
+                            <i class="fas fa-money-bill me-1"></i> Convert to sales invoice
+                        </a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Invoice Details Section -->
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <div id="printable-form">
+                    <div>
+                        <h1 style="text-align: center;">@company?.CompanyName</h1>
+                        <h3 style="text-align: center;">@company?.Address</h3>
+                        <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
+                            <tr>
+                                <td>Party Name:@ledger.LedgerName</td>
+                                <td></td>
+                                <td>Quotation No.@master.QuotationNo:</td>
+                                <td></td>
+                            </tr>
+                            <tr>
+                                <td>Address:@ledger.Address</td>
+                                <td></td>
+                                <td>Date:@master.Date</td>
+                                <td></td>
+                            </tr>
+                            <tr>
+                                <td></td>
+                                <td></td>
+                                <td>Mobile:@ledger.Phone</td>
+                                <td></td>
+                            </tr>
+                        </table>
+
+                        <h2 style="text-align: center; background-color: #f0f0f0;">Flooring & Wall Tiles Quotation</h2>
+
+                        <table class="table table-bordered table-sm">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Sr. No</th>
+                                    <th>Item</th>
+                                    <th>Description</th>
+                                    <th colspan="2">Size (Ft)</th>
+                                    <th>Qty</th>
+                                    <th>Total Sqft</th>
+                                    <th>Tile Sizes</th>
+                                    <th>Box Qty</th>
+                                    <th>Rate</th>
+                                    <th>Amount</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @{
+                                    int sno = 0;
+                                }
+                                @if (productList != null)
+                                {
+                                    @foreach (var item in productList)
+                                    {
+                                        <tr>
+                                            <td>
+                                                @{
+                                                    sno++;
+                                                    @sno
+                                                }
+                                            </td>
+                                            <td>@item.ProductName</td>
+                                            <td>@item.Description</td>
+                                            <td>@item.SizeLength</td>
+                                            <td>@item.SizeWidth</td>
+                                            <td>@item.Qty</td>
+                                            <td>@item.TotalSqFt</td>
+                                            <td>@item.TilesSizes</td>
+                                            <td>@item.BoxQty</td>
+                                            <td>@item.Rate</td>
+                                            <td>@item.Amount</td>
+                                        </tr>
+                                    }
+                                }
+                                <!-- Add similar rows for other data -->
+                            </tbody>
+                            <tfoot>
+                                <tr>
+                                    <td colspan="9"></td>
+                                    <th>Total Amount</th>
+                                    <td class="text-end">@master.TotalAmount</td>
+                                </tr>
+                                <tr>
+                                    <td colspan="9"></td>
+                                    <th>Discount Amount</th>
+                                    <td class="text-end">@master.DiscountAmount</td>
+                                </tr>
+                                <tr>
+                                    <td colspan="9"></td>
+                                    <th>Grand Total</th>
+                                    <td class="text-end">@master.GrandTotal</td>
+                                </tr>
+                                <tr>
+                                    <td colspan="9"></td>
+                                    <th>Advance Amount</th>
+                                    <td class="text-end">@master.AdvanceAmount</td>
+                                </tr>
+                                <tr>
+                                    <td colspan="9"></td>
+                                    <th>Pending Amount</th>
+                                    <td class="text-end">@master.PendingAmount</td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter]
+    public int id { get; set; }
+    private TilesQuotationMaster master = new TilesQuotationMaster();
+    private AccountLedger ledger = new AccountLedger();
+    List<ProductView> productList = new List<ProductView>();
+    List<Tax> listTax;
+    private CompanyView company;
+    string strNumberToWords;
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+    private async Task LoadData()
+    {
+        try
+        {
+            company = await companyService.GetAllCompaniesByIdAsync(1);
+            master = await tilesquotationService.GetByIdAsync(id);
+            productList = await tilesquotationService.GetAllByTileQuotationMasterDetails(id);
+            ledger = await accountledgerService.GetAccountLedgerByIdAsync(master.LedgerId);
+            if (master != null)
+            {
+                strNumberToWords = NumberToWords.ConvertAmount(Convert.ToDouble(master.GrandTotal.ToString()));
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error loading data: {ex.Message}", Severity.Error);
+        }
+    }
+    private async Task PrintDiv()
+    {
+        await JsRuntime.InvokeVoidAsync("printDiv", "printable-form");
+    }
+}

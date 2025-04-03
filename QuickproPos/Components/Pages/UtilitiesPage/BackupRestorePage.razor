@@ -1,0 +1,54 @@
+﻿@page "/backup"
+@inject BackupRestoreService BackupRestoreService
+
+<div class="container mt-4">
+    <!-- Header Section -->
+    <div class="row align-items-center mb-3">
+        <div class="col">
+            <h4 class="text-primary">Backup & Restore</h4>
+            <p class="text-muted">Easily back up and restore your database from this interface.</p>
+        </div>
+    </div>
+
+    <!-- Card Section -->
+    <div class="card shadow-sm">
+        <div class="card-body">
+            <!-- Backup and Restore Buttons -->
+            <div class="row mb-3 text-center">
+                <div class="col-12 col-md-6 mb-3">
+                    <button class="btn btn-primary w-100" @onclick="BackupDatabase">
+                        <i class="bi bi-cloud-upload"></i> Backup Database
+                    </button>
+                </div>
+                <div class="col-12 col-md-6">
+                    <button class="btn btn-success w-100" @onclick="RestoreDatabase">
+                        <i class="bi bi-cloud-download"></i> Restore Database
+                    </button>
+                </div>
+            </div>
+
+            <!-- Instruction Section -->
+            <div class="row">
+                <div class="col text-center">
+                    <p class="text-muted">
+                        Make sure to keep your backup files safe to prevent data loss.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private string DbPath = Path.Combine(FileSystem.AppDataDirectory, "QuickproPos.db3");
+
+    private async Task BackupDatabase()
+    {
+        await BackupRestoreService.BackupDatabase(DbPath);
+    }
+
+    private async Task RestoreDatabase()
+    {
+        await BackupRestoreService.RestoreDatabase(DbPath);
+    }
+}

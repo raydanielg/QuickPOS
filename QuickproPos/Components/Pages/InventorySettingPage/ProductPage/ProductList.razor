@@ -1,0 +1,114 @@
+﻿@page "/product"
+@inject ProductService productService
+@inject MudBlazor.ISnackbar Snackbar
+@inject IJSRuntime JsRuntime
+
+<div class="container mt-4">
+    <!-- Header Section -->
+    <div class="row align-items-center mb-3">
+        <div class="col">
+            <h4>Product</h4>
+        </div>
+        <div class="col text-end">
+            <a class="btn btn-primary" href="/product/add">
+                <i class="fas fa-plus me-2"></i> Create
+            </a>
+        </div>
+    </div>
+
+    <!-- Table Section -->
+    <div class="row">
+        <div class="col">
+            <div class="table-responsive">
+                <MudTable Items="@listProduct" Dense="@dense" Hover="@hover">
+
+                    <HeaderContent>
+                        <MudTh>PRODUCT NAME</MudTh>
+                        <MudTh>CODE</MudTh>
+                        <MudTh>CATEGORY</MudTh>
+                        <MudTh>BRAND</MudTh>
+                        <MudTh>UNIT</MudTh>
+                        <MudTh>SALES RATE</MudTh>
+                        <MudTh>PURCHASE RATE</MudTh>
+                        <MudTh></MudTh>
+                    </HeaderContent>
+                    <RowTemplate>
+                        <MudTd DataLabel="ProductName" Style="width:280px;">@context.ProductName</MudTd>
+                        <MudTd DataLabel="ProductCode" Style="width:140px;">@context.ProductCode</MudTd>
+                        <MudTd DataLabel="GroupName" Style="width:220px;">@context.GroupName</MudTd>
+                        <MudTd DataLabel="BrandName">@context.BrandName</MudTd>
+                        <MudTd DataLabel="UnitName">@context.UnitName</MudTd>
+                        <MudTd DataLabel="SalesRate">@context.SalesRate</MudTd>
+                        <MudTd DataLabel="PurchaseRate">@context.PurchaseRate</MudTd>
+                        <MudTd DataLabel="">
+                            <div class="d-flex justify-content-start">
+                                <a class="btn btn-warning btn-sm me-2" href="/product/@context.ProductId">
+                                    <i class="fas fa-edit"></i>
+                                </a>
+                                <button class="btn btn-danger btn-sm" @onclick="() => Delete(context.ProductId)">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </div>
+                        </MudTd>
+                    </RowTemplate>
+                    <PagerContent>
+                        <MudTablePager />
+                    </PagerContent>
+                </MudTable>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private bool dense = true;
+    private bool hover = true;
+    private List<ProductView> listProduct = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        try
+        {
+            listProduct = await productService.GetAllProductsAsync();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error loading data: {ex.Message}", Severity.Error);
+        }
+    }
+    private async Task Delete(int id)
+    {
+        try
+        {
+            // Show a confirmation dialog to the user
+            bool confirmed = await JsRuntime.InvokeAsync<bool>("confirm", "Are you sure you want to delete this product?");
+
+            if (!confirmed)
+            {
+                return; // User canceled the action
+            }
+
+            // Attempt to delete the product
+            bool isDeleted = await productService.DeleteProductAsync(id);
+
+            if (isDeleted == true)
+            {
+                Snackbar.Add("product deleted successfully.", Severity.Success);
+                await LoadData(); // Reload the data after successful deletion
+            }
+            else
+            {
+                Snackbar.Add("product cannot be deleted as it is being used.", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"An error occurred while deleting the product: {ex.Message}", Severity.Error);
+        }
+    }
+}

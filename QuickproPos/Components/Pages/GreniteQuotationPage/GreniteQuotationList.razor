@@ -1,0 +1,148 @@
+﻿@page "/quotation/granite"
+@inject GreniteService greniteService
+@inject MudBlazor.ISnackbar Snackbar
+@inject IJSRuntime JsRuntime
+
+<div class="container mt-4">
+    <!-- Header Section -->
+    <div class="row align-items-center mb-3">
+        <div class="col">
+            <h4>Granite Sqft & Quotation</h4>
+        </div>
+        <div class="col text-end">
+            <a class="btn btn-primary" href="/quotation/granite/add">
+                <i class="fas fa-plus me-2"></i> Create
+            </a>
+        </div>
+    </div>
+    <!-- Filter Section -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body">
+                    <div class="row">
+                        <!-- From Date -->
+                        <div class="col-lg-2 col-sm-6 col-12">
+                            <div class="form-group">
+                                From Date
+                                <InputDate class="form-control" @bind-Value="fromDate" />
+                            </div>
+                        </div>
+
+                        <!-- To Date -->
+                        <div class="col-lg-2 col-sm-6 col-12">
+                            <div class="form-group">
+                                To Date
+                                <InputDate class="form-control" @bind-Value="endDate" />
+                            </div>
+                        </div>
+                        <!-- Search Button -->
+                        <div class="col-lg-2 col-sm-6 col-12">
+                            <div class="form-group" style="margin-top: 20px;">
+                                <button class="btn btn-primary" @onclick="LoadData">
+                                    <i class="fas fa-search"></i> Search
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Table Section -->
+                <MudTable Items="listGrenite" Dense="dense" Hover="hover">
+                    <HeaderContent>
+                        <MudTh>DATE</MudTh>
+                        <MudTh>QUOTATION NO</MudTh>
+                        <MudTh>PARTY NAME</MudTh>
+                        <MudTh>DISCOUNT</MudTh>
+                        <MudTh>AMOUNT</MudTh>
+                        <MudTh></MudTh>
+                    </HeaderContent>
+                    <RowTemplate>
+                        <MudTd DataLabel="Date">@context.Date</MudTd>
+                        <MudTd DataLabel="QuotationNo">@context.QuotationNo</MudTd>
+                        <MudTd DataLabel="LedgerName">@context.LedgerName</MudTd>
+                        <MudTd DataLabel="DiscountAmount">@context.DiscountAmount</MudTd>
+                        <MudTd DataLabel="GrandTotal">@context.GrandTotal</MudTd>
+                        <MudTd DataLabel="">
+                            <!-- Dropdown Actions -->
+                            <button class="btn btn-sm btn-light dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
+                                <i class="fas fa-bars me-1"></i>
+                            </button>
+                            <div class="dropdown-menu">
+                                <a class="dropdown-item" href="/quotation/granite/details/@context.GreniteQuotationId">
+                                    <i class="fas fa-eye"></i> View
+                                </a>
+                                <a class="dropdown-item" href="/quotation/granite/@context.GreniteQuotationId">
+                                    <i class="fas fa-edit"></i> Edit
+                                </a>
+                                <a class="dropdown-item" href="/sales/granite/@context.GreniteQuotationId">
+                                    <i class="fas fa-edit"></i> Convert to sales invoice
+                                </a>
+                                <a class="dropdown-item text-danger" @onclick="() => Delete(context)">
+                                    <i class="fas fa-trash"></i> Delete
+                                </a>
+                            </div>
+                        </MudTd>
+                    </RowTemplate>
+                    <PagerContent>
+                        <MudTablePager />
+                    </PagerContent>
+                </MudTable>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private bool dense = true;
+    private bool hover = true;
+    private List<GreniteQuotationMasterView> listGrenite = new();
+    private DateTime fromDate { get; set; }
+    private DateTime endDate { get; set; } 
+
+    protected override async Task OnInitializedAsync()
+    {
+        fromDate = DateTime.UtcNow.AddDays(-7);
+        endDate = DateTime.UtcNow;
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        try
+        {
+            listGrenite = await greniteService.GreniteQuotationSearchAsync(fromDate, endDate);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error loading data: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task Delete(GreniteQuotationMasterView view)
+    {
+        try
+        {
+            // Show a confirmation dialog
+            bool confirmed = await JsRuntime.InvokeAsync<bool>("confirm", "Are you sure you want to delete this granite quotation invoice?");
+            if (!confirmed) return;
+
+            // Attempt to delete the sales
+            bool isDeleted = await greniteService.DeleteTilesQuotationAsync(view);
+
+            if (isDeleted)
+            {
+                Snackbar.Add("Granite quotation invoice deleted successfully.", Severity.Success);
+                await LoadData();
+            }
+            else
+            {
+                Snackbar.Add("This granite quotation invoice cannot be deleted as it is being used.", Severity.Warning);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"An error occurred while deleting the granite invoice: {ex.Message}", Severity.Error);
+        }
+    }
+}

@@ -1,0 +1,142 @@
+﻿@page "/report/sales-by-customer"
+@inject CompanyService companyService
+@inject IPrintingService PrintingService
+@inject ReportService reportService
+@inject AccountLedgerService accountledgerService
+@inject MudBlazor.ISnackbar Snackbar
+@inject IJSRuntime JsRuntime
+
+<PageTitle>Sales By Customer</PageTitle>
+<div class="container mt-4">
+    <div class="card">
+        <div class="card-header">
+            <h4 class="text-center">Sales By Customer</h4>
+        </div>
+        <div class="card-body">
+            <!-- Filter Section -->
+            <div class="row mb-3">
+                <div class="col-md-2">
+                    <label>From Date</label>
+                    <InputDate class="form-control" @bind-Value="fromDate" />
+                </div>
+                <div class="col-md-2">
+                    <label>To Date</label>
+                    <InputDate class="form-control" @bind-Value="toDate" />
+                </div>
+                <div class="col-md-4">
+                    <label>Customer</label>
+                    <select class="form-select" @bind="intLedgerId">
+                        <option value="0">All</option>
+                        @if (listLedger != null)
+                        {
+                            @foreach (var supplier in listLedger)
+                            {
+                                        <option value="@supplier.LedgerId">@supplier.LedgerName</option>
+                            }
+                        }
+                    </select>
+                </div>
+                <div class="col-md-4 d-flex align-items-end">
+                    <button class="btn btn-primary me-2" @onclick="LoadData"><i class="fas fa-search"></i> Search</button>
+                    <button class="btn btn-secondary me-2" @onclick="@(_ => PrintingService.Print("printable-form", PrintType.Html))"><i class="fas fa-print"></i> Print</button>
+                    <button class="btn btn-success me-2" @onclick="ExportToExcel"><i class="fas fa-file-excel"></i>Excel</button>
+                    <button class="btn btn-danger" @onclick="PrintDiv"><i class="fas fa-file-pdf"></i> PDF</button>
+                </div>
+            </div>
+
+            <hr />
+
+            <!-- Report Section -->
+            <div id="printable-form">
+                <div class="text-center mb-4">
+                    <h5>@company.CompanyName</h5>
+                    <p>@company.Address</p>
+                    <p>@company.PhoneNo</p>
+                    <h6>Sales By Customer</h6>
+                </div>
+
+                @if (listModel == null || !listModel.Any())
+                {
+                        <p class="text-center text-muted">No data available for the selected filters.</p>
+                }
+                else
+                {
+                        <table class="table table-bordered table-striped">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>#</th>
+                                    <th>Bill No</th>
+                                    <th>Date</th>
+                                    <th>Customer Name</th>
+                                    <th>Voucher Type</th>
+                                    <th>Total Amount</th>
+                                    <th>User</th>
+                                    <th>Narration</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                            @{
+                                int sno = 0;
+                            }
+                                @foreach (var item in listModel)
+                                {
+                                                <tr>
+                                                    <td>
+                                                        @{
+                                                            sno++;
+                                                        }
+                                    @sno  
+                                                    </td>
+                                                    <td>@item.VoucherNo</td>
+                                                    <td>@item.Date.ToString(company.DateTimeFormat)</td>
+                                                    <td>@item.LedgerName</td>
+                                                    <td>@item.VoucherTypeName</td>
+                                                    <td>@($"{company.CurrencySymbol} {item.GrandTotal:N2}")</td>
+                                                    <td>@item.UserId</td>
+                                                    <td>@item.Narration</td>
+                                                </tr>
+                                }
+                            </tbody>
+                            <tfoot>
+                                <tr class="table-info">
+                                    <td colspan="5" class="text-end fw-bold">Total</td>
+                                    <td colspan="3">@($"{company.CurrencySymbol} {listModel.Sum(i => i.GrandTotal):N2}")</td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    DateTime fromDate = DateTime.UtcNow.AddDays(-1);
+    DateTime toDate = DateTime.UtcNow;
+    IList<SalesMasterView> listModel;
+    CompanyView company = new CompanyView();
+    IList<AccountLedgerView> listLedger;
+    int intLedgerId = 0;
+
+    protected override async Task OnInitializedAsync()
+    {
+        company = await companyService.GetAllCompaniesByIdAsync(1);
+        listLedger = await accountledgerService.GetAllAccountLedgersByIdAsync(26);
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        listModel = await reportService.SalesByCustomerAsync(fromDate, toDate, intLedgerId);
+    }
+
+    private async Task PrintDiv()
+    {
+        await JsRuntime.InvokeVoidAsync("printDiv", "printable-form");
+    }
+
+    private async Task ExportToExcel()
+    {
+        await JsRuntime.InvokeVoidAsync("exportToExcel", "printable-form");
+    }
+}

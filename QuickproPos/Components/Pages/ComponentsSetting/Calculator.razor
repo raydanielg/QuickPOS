@@ -1,0 +1,95 @@
+﻿@using System.Data;
+<div class="pos-amount-btns">
+    <button type="button" class="btn btn-block btn-primary qc-btn sound-btn btn-amount" @onclick="()=>AddDigits(1)">1</button>
+    <button type="button" class="btn btn-block btn-primary qc-btn sound-btn btn-amount" @onclick="()=>AddDigits(2)">2</button>
+    <button type="button" class="btn btn-block btn-primary qc-btn sound-btn btn-amount" @onclick="()=>AddDigits(4)">3</button>
+    <button type="button" class="btn btn-block btn-primary qc-btn sound-btn btn-amount-md" @onclick="()=>AddAmount(5)">+5</button>
+    <button type="button" class="btn btn-block btn-primary qc-btn sound-btn btn-amount-lg" @onclick="()=>AddAmount(100)">+100</button> <br />
+    <button type="button" class="btn btn-block btn-primary qc-btn sound-btn btn-amount" @onclick="()=>AddDigits(4)">4</button>
+    <button type="button" class="btn btn-block btn-primary qc-btn sound-btn btn-amount" @onclick="()=>AddDigits(5)">5</button>
+    <button type="button" class="btn btn-block btn-primary qc-btn sound-btn btn-amount" @onclick="()=>AddDigits(6)">6</button>
+    <button type="button" class="btn btn-block btn-primary qc-btn sound-btn btn-amount-md" @onclick="()=>AddAmount(10)">+10</button>
+    <button type="button" class="btn btn-block btn-primary qc-btn sound-btn btn-amount-lg" @onclick="()=>AddAmount(500)">+500</button> <br />
+    <button type="button" class="btn btn-block btn-primary qc-btn sound-btn btn-amount" @onclick="()=>AddDigits(7)">7</button>
+    <button type="button" class="btn btn-block btn-primary qc-btn sound-btn btn-amount" @onclick="()=>AddDigits(8)">8</button>
+    <button type="button" class="btn btn-block btn-primary qc-btn sound-btn btn-amount" @onclick="()=>AddDigits(9)">9</button>
+    <button type="button" class="btn btn-block btn-primary qc-btn sound-btn btn-amount-md" @onclick="()=>AddAmount(20)">+20</button>
+    <button type="button" class="btn btn-block btn-primary qc-btn sound-btn btn-amount-lg" @onclick="()=>AddAmount(2000)">+2000</button> <br />
+    <button type="button" class="btn btn-block btn-primary qc-btn sound-btn btn-amount" @onclick="()=>SpecialChar(strClear)">C</button>
+    <button type="button" class="btn btn-block btn-primary qc-btn sound-btn btn-amount" @onclick="()=>AddDigits(0)">0</button>
+    <button type="button" class="btn btn-block btn-primary qc-btn sound-btn btn-amount" @onclick="()=>SpecialChar(strPoint)">.</button>
+    <button type="button" class="btn btn-block btn-primary qc-btn sound-btn btn-amount-md" @onclick="()=>AddAmount(50)">+50</button>
+    <button type="button" class="btn btn-block btn-primary qc-btn sound-btn btn-amount-lg" @onclick="@(() => SpecialChar(strBack))">
+        <i class="fa-solid fa-delete-left"></i>
+    </button> <br />
+</div>
+@code {
+    [Parameter] public EventCallback<string> OnButtonClick { get; set; }
+    string strEmpty = string.Empty;
+    string strClear = "C";
+    string strPoint = ".";
+    string strBack = "X";
+    string strMulti = string.Empty;
+    decimal decTotal = 0;
+    decimal decPointPlus = 0;
+    string strPointPlus;
+
+    private string itemPriceInput = "";
+
+    public async Task AddDigits(int digit)
+    {
+        itemPriceInput += digit.ToString();
+        decTotal = !string.IsNullOrEmpty(itemPriceInput) ? decimal.Parse(itemPriceInput) : 0;
+
+        await OnButtonClick.InvokeAsync(decTotal.ToString());
+    }
+
+    public async Task AddAmount(int amount)
+    {
+        decTotal += amount;
+        itemPriceInput = decTotal.ToString();
+
+        await OnButtonClick.InvokeAsync(decTotal.ToString());
+    }
+
+    public async Task SpecialChar(string strValue)
+    {
+        if (strValue == strClear)
+        {
+            itemPriceInput = string.Empty;
+            decTotal = 0;
+        }
+        else if (strValue == strPoint)
+        {
+            if (!itemPriceInput.Contains(strPoint))
+                itemPriceInput += strPoint;
+            decTotal = decimal.Parse(itemPriceInput);
+        }
+        else if (strValue == strBack)
+        {
+            if (itemPriceInput.Length >= 1)
+                itemPriceInput = itemPriceInput?.Substring(0, itemPriceInput.Length - 1) ?? string.Empty;
+            decTotal = !string.IsNullOrEmpty(itemPriceInput) ? decimal.Parse(itemPriceInput) : 0;
+        }
+
+        await OnButtonClick.InvokeAsync(decTotal.ToString());
+    }
+
+    //public async Task AddAmount(decimal decValue, string strValue)
+    //{
+    //    if (strValue == "C")
+    //    {
+    //        decTotal = 0;
+    //    }
+    //    if (strMulti == "X")
+    //    {
+    //        decTotal = Math.Round(decTotal * decValue, 2);
+    //    }
+    //    await OnButtonClick.InvokeAsync(decTotal.ToString());
+    //}
+
+    //public async void AddProductMulti(string strValue)
+    //{
+    //    strMulti = "X";
+    //}
+}

@@ -1,0 +1,70 @@
+﻿@using System.Security.Claims;
+@inject UserService userService
+@inject SalesRegisterService _register
+@inject MudBlazor.ISnackbar Snackbar
+@inject CompanyService _company
+<div class="modal fade show d-block" style="background-color: rgba(0, 0, 0, 0.5);">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title">
+                    <i class="fa-solid fa-wallet me-2"></i> Cash In Hand
+                </h5>
+            </div>
+            <div class="modal-body">
+                <div class="row">
+                    <div class="col-md-12">
+                        <label>Cash In Hand *</label>
+                        <input type="text" @bind="register.OpeningCashAmount" class="form-control numkey" required="">
+                    </div>
+                    <div class="col-md-12" style="margin-top: 10px;">
+                        <button id="submit-btn" type="button" @onclick="@SaveCashinhand" class="btn btn-block btn-outline-dark active">Start Selling</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter] public EventCallback<int> OnButtonClick { get; set; }
+    UserMaster? currentUser;
+    SalesRegister register = new SalesRegister();
+    CompanyView company = new();
+    protected override async Task OnInitializedAsync()
+    {
+        company = await _company.GetAllCompaniesByIdAsync(1);
+        currentUser = await userService.GetCurrentUser(); // Fetch the current user
+        register.UserId = currentUser.UserId;
+        register.OpeningCashAmount = 0;
+        register.ClosingCashAmount = 0;
+        register.OpeningTime = DateTime.UtcNow;
+        register.ReturnAmount = 0;
+        register.CashLeftinDrawer = 0;
+        register.PhysicalDrawer = 0;
+        register.Notes = string.Empty;
+        register.Status = "Open";
+        StateHasChanged();
+    }
+    private async void SaveCashinhand()
+    {
+        currentUser = await userService.GetCurrentUser(); // Fetch the current user
+        register.UserId = currentUser.UserId;
+        register.OpeningTime = DateTime.UtcNow;
+        register.AddedDate = DateTime.UtcNow;
+        var result = await _register.SaveAsync(register);
+        if (result > 0)
+        {
+            await OnButtonClick.InvokeAsync(0);
+            Snackbar.Add("Success", Severity.Success);
+            StateHasChanged();
+        }
+        else
+        {
+            Snackbar.Add("Failed", Severity.Error);
+            StateHasChanged();
+        }
+
+        StateHasChanged();
+    }
+}

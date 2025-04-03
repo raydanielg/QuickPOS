@@ -1,0 +1,156 @@
+﻿@page "/payment-out/details/{id:int}"
+@inject CompanyService companyService
+@inject AccountLedgerService accountledgerService
+@inject PaymentOutService paymentoutService
+@inject IPrintingService PrintingService
+@inject MudBlazor.ISnackbar Snackbar
+@inject IJSRuntime JsRuntime
+@inject NavigationManager NavigationManager
+
+<div class="container mt-4">
+    <div class="py-4">
+        <!-- Title Section -->
+        <div class="row mb-3">
+            <div class="col-12">
+                <h4 class="text-primary d-flex align-items-center">
+                    <i class="fas fa-file-invoice-dollar me-2"></i> Payment-Out | Print
+                </h4>
+            </div>
+        </div>
+
+        <!-- Invoice Action Section -->
+        <div class="card mb-4 shadow-sm">
+            <div class="card-body">
+                <ul class="list-inline">
+                    <li class="list-inline-item">
+                        <button class="btn btn-sm btn-success" @onclick="@(_ => PrintingService.Print("printable-form", PrintType.Html))">
+                            <i class="fas fa-print me-1"></i> Print
+                        </button>
+                    </li>
+                    <li class="list-inline-item">
+                        <button class="btn btn-sm btn-danger" @onclick="()=>PrintDiv()">
+                            <i class="fas fa-file-pdf me-1"></i> PDF
+                        </button>
+                    </li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Invoice Details Section -->
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <div id="printable-form">
+                    <div class="row mb-4">
+                        <table class="table table-bordered table-sm">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Supplier Info</th>
+                                    <th>Company Info</th>
+                                    <th>Invoice Info</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <!-- Customer Info -->
+                                    <td>
+                                        <strong>@ledger.LedgerName</strong><br />
+                                        @ledger.Email<br />
+                                        @ledger.Phone<br />
+                                        @ledger.Address<br />
+                                    </td>
+                                    <!-- Company Info -->
+                                    <td>
+                                        <strong>@company?.CompanyName</strong><br />
+                                        @company?.Email<br />
+                                        @company?.PhoneNo<br />
+                                        @company?.Address<br />
+                                    </td>
+                                    <!-- Invoice Info -->
+                                    <td>
+                                        <strong>Invoice No:</strong> @master.VoucherNo<br />
+                                        <strong>Date:</strong> @master.Date<br />
+                                        <strong>Receive Amount:</strong> @master.Amount<br />
+                                        <strong>Status:</strong> @master.Status<br />
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <!-- Product Table -->
+                    <table class="table table-bordered">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Bill No</th>
+                                <th>Date</th>
+                                <th class="text-end">Bill Amount</th>
+                                <th class="text-end">Payment Amount</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @if (listReceiveDetails != null)
+                            {
+                                @foreach (var item in listReceiveDetails)
+                                {
+                                    <tr>
+                                        <td>@item.VoucherNo</td>
+                                        <td>@item.Date</td>
+                                        <td class="text-end">@item.InvoiceAmount</td>
+                                        <td class="text-end">@item.ReceiveAmount</td>
+                                    </tr>
+                                }
+                            }
+                        </tbody>
+                        <tfoot>
+                            <tr>
+                                <td colspan="2"></td>
+                                <th>Amount in words</th>
+                                <td class="text-end">@strNumberToWords</td>
+                            </tr>
+                            <tr>
+                                <td colspan="2"></td>
+                                <th>Notes</th>
+                                <td class="text-end">@master.Narration</td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter]
+    public int id { get; set; }
+    IList<PaymentReceiveView> listReceiveDetails;
+    private PaymentMaster master = new PaymentMaster();
+    private AccountLedger ledger = new AccountLedger();
+    private CompanyView company;
+    string strNumberToWords;
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+    private async Task LoadData()
+    {
+        try
+        {
+            company = await companyService.GetAllCompaniesByIdAsync(1);
+            master = await paymentoutService.GetPaymentByIdAsync(id);
+            ledger = await accountledgerService.GetAccountLedgerByIdAsync(master.LedgerId);
+            listReceiveDetails = await paymentoutService.PaymentOutDetailsViewAsync(id);
+            if (master != null)
+            {
+                strNumberToWords = NumberToWords.ConvertAmount(Convert.ToDouble(master.Amount.ToString()));
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error loading data: {ex.Message}", Severity.Error);
+        }
+    }
+    private async Task PrintDiv()
+    {
+        await JsRuntime.InvokeVoidAsync("printDiv", "printable-form");
+    }
+}

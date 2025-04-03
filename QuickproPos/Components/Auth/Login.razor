@@ -1,0 +1,62 @@
+﻿@page "/login"
+@using QuickproPos.Components.Layout
+@layout LoginLayout
+@inject UserService authService
+@inject NavigationManager NavigationManager
+@inject MudBlazor.ISnackbar Snackbar
+<div class="d-flex align-items-center justify-content-center vh-100">
+    <div class="card shadow p-4" style="max-width: 400px; width: 100%;">
+        <EditForm Model="login" OnValidSubmit="Logins">
+            <DataAnnotationsValidator />
+            <div class="text-center mb-4">
+                <img src="/img/logo.png" alt="QuickproPos" style="max-width: 150px;" class="mb-3" />
+            </div>
+            <div class="mb-3">
+                <label for="username" class="form-label">Email</label>
+                <input type="email" class="form-control" @bind="login.Email" placeholder="Enter email" />
+                <ValidationMessage For="() =>login.Email" />
+            </div>
+            <div class="mb-3">
+                <label for="password" class="form-label">Password</label>
+                <input type="password" class="form-control" @bind="login.Password" placeholder="Enter password" />
+                <ValidationMessage For="() =>login.Password" />
+            </div>
+            <div class="form-check mb-3">
+                <input type="checkbox" class="form-check-input" id="rememberMe" />
+                <label class="form-check-label" for="rememberMe">Remember me</label>
+            </div>
+            <button type="submit" class="btn btn-primary w-100">Sign In</button>
+            @* <div class="text-center mt-3">
+                <a href="/forgot-password">Forgot password?</a> | <a href="/reset-now">Reset Now</a>
+            </div> *@
+        </EditForm>
+    </div>
+</div>
+@code{
+    private LoginView login = new LoginView();
+    protected override async Task OnInitializedAsync()
+    {
+        login.Email = "admin@gmail.com";
+        login.Password = "admin123";
+    }
+
+    private async Task Logins()
+    {
+        try
+        {
+            var user = await authService.LoginUser(login.Email, login.Password);
+            if (user != null)
+            {
+                NavigationManager.NavigateTo("/dashboard");
+            }
+            else
+            {
+                Snackbar.Add("Login failed.", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add(ex.Message, Severity.Error);
+        }
+    }
+}

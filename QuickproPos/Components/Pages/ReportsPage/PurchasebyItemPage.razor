@@ -1,0 +1,156 @@
+﻿@page "/report/purchase-by-item"
+@inject CompanyService companyService
+@inject WarehouseService warehouseService
+@inject IPrintingService PrintingService
+@inject ReportService reportService
+@inject ProductService productService
+@inject MudBlazor.ISnackbar Snackbar
+@inject IJSRuntime JsRuntime
+
+<PageTitle>Purchase By Item</PageTitle>
+<div class="container mt-4">
+    <div class="card">
+        <div class="card-header">
+            <h4 class="text-center">Purchase By Item</h4>
+        </div>
+        <div class="card-body">
+            <!-- Filter Section -->
+            <div class="row mb-3">
+                <div class="col-md-2">
+                    <label>From Date</label>
+                    <InputDate class="form-control" @bind-Value="fromDate" />
+                </div>
+                <div class="col-md-2">
+                    <label>To Date</label>
+                    <InputDate class="form-control" @bind-Value="toDate" />
+                </div>
+                <div class="col-md-4">
+                    <label>Product</label>
+                    <select class="form-select" @bind="intProductId">
+                        <option value="0">All</option>
+                        @if (listProduct != null)
+                        {
+                            @foreach (var product in listProduct)
+                            {
+                                <option value="@product.ProductId">@product.ProductName</option>
+                            }
+                        }
+                    </select>
+                </div>
+
+                <div class="col-md-4">
+                    <label>Warehouse</label>
+                    <select class="form-select" @bind="intWarehouseId">
+                        <option value="0">All</option>
+                        @if (listWarehouse != null)
+                        {
+                            @foreach (var warehouse in listWarehouse)
+                            {
+                                <option value="@warehouse.WarehouseId">@warehouse.Name</option>
+                            }
+                        }
+                    </select>
+                </div>
+                <div class="col-md-4 d-flex align-items-end">
+                    <button class="btn btn-primary me-2" @onclick="LoadData"><i class="fas fa-search"></i> Search</button>
+                    <button class="btn btn-secondary me-2" @onclick="@(_ => PrintingService.Print("printable-form", PrintType.Html))"><i class="fas fa-print"></i> Print</button>
+                    <button class="btn btn-success me-2" @onclick="ExportToExcel"><i class="fas fa-file-excel"></i>Excel</button>
+                    <button class="btn btn-danger" @onclick="PrintDiv"><i class="fas fa-file-pdf"></i> PDF</button>
+                </div>
+            </div>
+
+            <hr />
+
+            <!-- Report Section -->
+            <div id="printable-form">
+                <div class="text-center mb-4">
+                    <h5>@company.CompanyName</h5>
+                    <p>@company.Address</p>
+                    <p>@company.PhoneNo</p>
+                    <h6>Sales By Item</h6>
+                </div>
+
+                @if (listModel == null || !listModel.Any())
+                {
+                    <p class="text-center text-muted">No data available for the selected filters.</p>
+                }
+                else
+                {
+                    <table class="table table-bordered table-striped">
+                        <thead class="table-light">
+                            <tr>
+                                <th>S.No</th>
+                                <th>Product Name</th>
+                                <th style="">Qty</th>
+                                <th style="">Discount</th>
+                                <th style="">Gross Amount</th>
+                                <th>Amount</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @{
+                                int sno = 0;
+                            }
+                            @foreach (var item in listModel)
+                            {
+                            <tr>
+                                <td>
+                                    @{
+                                        sno++;
+
+                                    }
+                                    @sno
+                                </td>
+                                <td>@item.ProductName</td>
+									<td>@item.Qty</td>
+									<td>@company.CurrencySymbol@item.DiscountAmount</td>
+									<td>@company.CurrencySymbol @item.GrossAmount</td>
+									<td>@company.CurrencySymbol@item.TotalAmount </td>
+                            </tr>
+                            }
+                        </tbody>
+                        <tfoot>
+                            <tr class="table-info">
+                                <td colspan="5" class="text-end fw-bold">Total</td>
+                                <td colspan="1">@($"{company.CurrencySymbol} {listModel.Sum(i => i.TotalAmount):N2}")</td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    DateTime fromDate = DateTime.UtcNow.AddDays(-1);
+    DateTime toDate = DateTime.UtcNow;
+    int intProductId = 0;
+    int intWarehouseId = 0;
+    List<ProductView> listModel;
+    CompanyView company = new CompanyView();
+    List<ProductView> listProduct;
+    List<Warehouse> listWarehouse;
+    protected override async Task OnInitializedAsync()
+    {
+        company = await companyService.GetAllCompaniesByIdAsync(1);
+        listProduct = await productService.GetAllProductsAsync();
+        listWarehouse = await warehouseService.GetAllWarehousesAsync();
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        listModel = await reportService.ItemWisePurchaseAsync(fromDate, toDate, intProductId, intWarehouseId);
+    }
+
+    private async Task PrintDiv()
+    {
+        await JsRuntime.InvokeVoidAsync("printDiv", "printable-form");
+    }
+
+    private async Task ExportToExcel()
+    {
+        await JsRuntime.InvokeVoidAsync("exportToExcel", "printable-form");
+    }
+}

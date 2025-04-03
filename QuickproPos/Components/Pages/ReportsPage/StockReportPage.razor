@@ -1,0 +1,195 @@
+﻿@page "/report/stock"
+@inject CompanyService companyService
+@inject CategoryService categoryService
+@inject IPrintingService PrintingService
+@inject ReportService reportService
+@inject ProductService productService
+@inject MudBlazor.ISnackbar Snackbar
+@inject IJSRuntime JsRuntime
+
+<div class="container mt-4">
+    <div class="card">
+        <div class="card-header">
+            <h4 class="text-center">Stock Report</h4>
+        </div>
+        <div class="card-body">
+            <!-- Filter Section -->
+            <div class="row mb-3">
+                <div class="col-md-4">
+                    <label>Category</label>
+                    <select class="form-select" @bind="intCategoryId">
+                        <option value="0">-- Select a category --</option>
+                        @if (listCategory != null)
+                        {
+                            foreach (var parent in listCategory.Where(pg => pg.GroupUnder == 0))
+                            {
+                                <option value="@parent.GroupId">@parent.GroupName</option>
+                                @foreach (var child in listCategory.Where(pg => pg.GroupUnder == parent.GroupId))
+                                {
+                                    <option value="@child.GroupId">-- @child.GroupName</option>
+                                }
+                            }
+                        }
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <label>Product</label>
+                    <select class="form-select" @bind="intProductId">
+                        <option value="0">All</option>
+                        @if (listProduct != null)
+                        {
+                            @foreach (var product in listProduct)
+                            {
+                                <option value="@product.ProductId">@product.ProductName</option>
+                            }
+                        }
+                    </select>
+                </div>
+                <div class="col-md-4 d-flex align-items-end">
+                    <button class="btn btn-primary me-2" @onclick="LoadData" title="Search">
+                        <i class="fas fa-search"></i>
+                    </button>
+                    <button class="btn btn-secondary me-2" @onclick="@(_ => PrintingService.Print("printable-form", PrintType.Html))" title="Print">
+                        <i class="fas fa-print"></i>
+                    </button>
+                    <button class="btn btn-success me-2" @onclick="ExportToExcel" title="Export to Excel">
+                        <i class="fas fa-file-excel"></i>
+                    </button>
+                    <button class="btn btn-danger" @onclick="PrintDiv" title="Export to PDF">
+                        <i class="fas fa-file-pdf"></i>
+                    </button>
+                </div>
+            </div>
+
+            <hr />
+
+            <!-- Report Section -->
+            <div id="printable-form">
+                <div class="text-center mb-4">
+                    <h5>@company.CompanyName</h5>
+                    <p>@company.Address</p>
+                    <p>@company.PhoneNo</p>
+                    <h6>Stock Report</h6>
+                </div>
+
+                @if (isLoading)
+                {
+                    <div class="text-center">
+                        <div class="spinner-border text-primary" role="status"></div>
+                        <p>Loading...</p>
+                    </div>
+                }
+                else if (listModel == null || !listModel.Any())
+                {
+                    <p class="text-center text-muted">No data available for the selected filters.</p>
+                }
+                else
+                {
+                    <table class="table table-bordered table-striped">
+                        <thead class="table-light">
+                            <tr>
+                                <th>S.No</th>
+                                <th>Product Code</th>
+                                <th>Product Name</th>
+                                <th>Unit</th>
+                                <th>Purchase Rate</th>
+                                <th>Purchase Qty</th>
+                                <th>Purchase Balance</th>
+                                <th>Sales Rate</th>
+                                <th>Sales Qty</th>
+                                <th>Sales Balance</th>
+                                <th>Stock Qty</th>
+                                <th>Stock Amount</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @for (var i = 0; i < listModel.Count; i++)
+                            {
+                                var item = listModel[i];
+                                <tr>
+                                    <td>@(i + 1)</td>
+                                    <td>@item.ProductCode</td>
+                                    <td>@item.ProductName</td>
+                                    <td>@item.UnitName</td>
+                                    <td>@company.CurrencySymbol @item.Rate:N2</td>
+                                    <td>@item.PurQty</td>
+                                    <td>@company.CurrencySymbol @item.PurchaseStockBal:N2</td>
+                                    <td>@company.CurrencySymbol @item.SalesRate:N2</td>
+                                    <td>@item.SalesQty</td>
+                                    <td>@company.CurrencySymbol @item.SalesStockBalance:N2</td>
+                                    <td>@item.Stock</td>
+                                    <td>@company.CurrencySymbol @item.StockValue:N2</td>
+                                </tr>
+                            }
+                        </tbody>
+                        <tfoot>
+                            <tr class="table-info">
+                                <td colspan="10" class="text-end fw-bold">Total:</td>
+                                <td colspan="2">@($"{company.CurrencySymbol} {listModel.Sum(i => i.StockValue):N2}")</td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    DateTime fromDate = DateTime.UtcNow.AddDays(-30); // Default to last 30 days
+    DateTime toDate = DateTime.UtcNow;
+    int intProductId = 0;
+    int intCategoryId = 0;
+    List<ProductStockView> listModel;
+    CompanyView company = new();
+    List<ProductView> listProduct = new();
+    List<ProductGroupView> listCategory = new();
+    bool isLoading = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            isLoading = true;
+            company = await companyService.GetAllCompaniesByIdAsync(1);
+            listProduct = await productService.GetAllProductsAsync();
+            listCategory = await categoryService.GetAllProductGroupsAsync();
+            await LoadData();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error: {ex.Message}", MudBlazor.Severity.Error);
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task LoadData()
+    {
+        try
+        {
+            isLoading = true;
+            listModel = await reportService.StockReportAsync(intProductId, intCategoryId);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error: {ex.Message}", MudBlazor.Severity.Error);
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task PrintDiv()
+    {
+        await JsRuntime.InvokeVoidAsync("printDiv", "printable-form");
+    }
+
+    private async Task ExportToExcel()
+    {
+        await JsRuntime.InvokeVoidAsync("exportToExcel", "printable-form");
+    }
+}

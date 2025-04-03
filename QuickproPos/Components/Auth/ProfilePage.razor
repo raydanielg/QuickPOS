@@ -1,0 +1,81 @@
+﻿@page "/user/profile/{id:int}"
+@inject UserService AuthService
+@inject NavigationManager NavigationManager
+@inject MudBlazor.ISnackbar Snackbar
+
+<div class="row">
+    <div class="d-flex align-items-center justify-content-center vh-100">
+        <div class="card shadow p-4" style="max-width: 400px; width: 100%;">
+            <EditForm Model="user" OnValidSubmit="Save">
+                <DataAnnotationsValidator />
+                <div class="mb-3">
+                    <label for="username" class="form-label">User Name</label>
+                    <input type="text" class="form-control" id="username" @bind="user.Username" placeholder="Enter username" />
+                    <ValidationMessage For="() => user.Username" />
+                </div>
+                <div class="mb-3">
+                    <label for="email" class="form-label">Email</label>
+                    <input type="email" class="form-control" id="email" @bind="user.Email" placeholder="Enter email" />
+                    <ValidationMessage For="() => user.Email" />
+                </div>
+                <div class="mb-3">
+                    <label for="password" class="form-label">Role</label>
+                    <select class="form-select" @bind="user.Role" disabled>
+                        <option value="@UserRole.Admin">Admin</option>
+                        <option value="@UserRole.User">User</option>
+                        <option value="@UserRole.Accountant">Accountant</option>
+                        <option value="@UserRole.Sales">Sales</option>
+                        <option value="@UserRole.Purchase">Purchase</option>
+                        <option value="@UserRole.Pos">Pos</option>
+                    </select>
+                    <ValidationMessage For="() => user.Role" />
+                </div>
+                <button type="submit" class="btn btn-primary w-100">Save</button>
+            </EditForm>
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter]
+    public int Id { get; set; }
+
+    private UserMaster user = new UserMaster();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadDataAsync();
+    }
+
+    private async Task LoadDataAsync()
+    {
+        try
+        {
+                user = await AuthService.GetUserMasterByIdAsync(Id) ?? new UserMaster();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error loading data: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task Save()
+    {
+        try
+        {
+                bool isUpdated = await AuthService.UpdateUserMasterAsync(user);
+                if (isUpdated)
+                {
+                    Snackbar.Add("User updated successfully", Severity.Success);
+                }
+                else
+                {
+                    Snackbar.Add("User name already exists.", Severity.Warning);
+                }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error saving user: {ex.Message}", Severity.Error);
+        }
+    }
+}

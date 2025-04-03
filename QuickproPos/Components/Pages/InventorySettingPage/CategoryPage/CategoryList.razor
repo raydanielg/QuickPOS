@@ -1,0 +1,280 @@
+﻿@page "/category"
+@inject CategoryService categoryService
+@inject MudBlazor.ISnackbar Snackbar
+@inject IJSRuntime JsRuntime
+
+<div class="container mt-4">
+    <!-- Header Section -->
+    <div class="row align-items-center mb-3">
+        <div class="col">
+            <h4>Category</h4>
+        </div>
+        <div class="col text-end">
+            <button class="btn btn-primary" @onclick="ShowModal">
+                <i class="fas fa-plus me-2"></i> Create
+            </button>
+        </div>
+    </div>
+
+    <!-- Table Section -->
+    <div class="row">
+        <div class="col">
+            <div class="table-responsive">
+                <MudTable Items="@listProductGroup" Dense="@dense" Hover="@hover">
+
+                    <HeaderContent>
+                        <MudTh>NAME</MudTh>
+                        <MudTh>UNDER</MudTh>
+                        <MudTh>IMAGE</MudTh>
+                        <MudTh>ACTION</MudTh>
+                    </HeaderContent>
+                    <RowTemplate>
+                        <MudTd DataLabel="Name" Style="width:900px;">@context.GroupName</MudTd>
+                        <MudTd DataLabel="Under" Style="width:900px;">@context.Under</MudTd>
+                        <MudTd DataLabel="Image">
+                            @if (string.IsNullOrEmpty(context.Image))
+                            {
+                                <img src="/img/noimage.png" height="40" width="40" />
+                            }
+                            else
+                            {
+                                <img src="@context.Image" width="40" height="40" />
+                            }
+                        </MudTd>
+                        <MudTd DataLabel="">
+                            <div class="d-flex justify-content-start">
+                                <button class="btn btn-warning btn-sm me-2" @onclick="() => Edit(context.GroupId)">
+                                    <i class="fas fa-edit"></i>
+                                </button>
+                                <button class="btn btn-danger btn-sm" @onclick="() => Delete(context.GroupId)">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </div>
+                        </MudTd>
+                    </RowTemplate>
+                    <PagerContent>
+                        <MudTablePager />
+                    </PagerContent>
+                </MudTable>
+
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal -->
+    @if (IsModalVisible)
+    {
+        <div class="modal fade show d-block" style="background-color: rgba(0, 0, 0, 0.5);">
+            <div class="modal-dialog">
+                <EditForm Model="productgroup" OnValidSubmit="Save">
+                    <DataAnnotationsValidator />
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title">@ModalTitle</h5>
+                            <button type="button" class="btn-close" @onclick="CloseModal"></button>
+                        </div>
+                        <div class="modal-body">
+                            <div class="mb-3">
+                                <label class="form-label">Name</label>
+                                <input type="text" class="form-control" @bind="productgroup.GroupName" placeholder="Enter name">
+                                <ValidationMessage For="@(() => productgroup.GroupName)" class="validation-message" />
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Under</label>
+                                <select class="form-select" @bind="productgroup.GroupUnder">
+                                    <option value="0">-- Select a category --</option>
+                                    @if (listProductGroup != null)
+                                    {
+                                        // Render parent groups and their child groups
+                                        foreach (var parent in listProductGroup.Where(pg => pg.GroupUnder == 0))
+                                        {
+                                            // Render parent group
+                                            <option value="@parent.GroupId">@parent.GroupName</option>
+
+                                            // Render child groups under the parent
+                                            @foreach (var child in listProductGroup.Where(pg => pg.GroupUnder == parent.GroupId))
+                                            {
+                                                <option value="@child.GroupId">-- @child.GroupName</option>
+                                            }
+                                        }
+                                    }
+                                </select>
+
+
+
+                                <ValidationMessage For="@(() => productgroup.GroupUnder)" />
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Image</label>
+                                <div class="image-uploads">
+                                    @if (productgroup.Image == string.Empty)
+                                    {
+                                        <img src="/img/noimage.png" height="60" width="60">
+                                    }
+                                    else
+                                    {
+                                        <img src="@productgroup.Image" width="60" height="60">
+                                    }
+                                </div>
+                                <InputFile OnChange="OnFileChange" />
+                                <ValidationMessage For="@(() => productgroup.Image)" />
+                            </div>
+                        <div class="mb-3">
+                            <label class="form-label">Narration</label>
+                            <textarea type="text" class="form-control" @bind="productgroup.Narration" placeholder="Enter narration"></textarea>
+                            <ValidationMessage For="@(() => productgroup.Narration)" />
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" @onclick="CloseModal">Cancel</button>
+                            <button type="submit" class="btn btn-primary">Save</button>
+                        </div>
+                    </div>
+                    </div>
+                </EditForm>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    private bool dense = true;
+    private bool hover = true;
+    private ProductGroup productgroup = new();
+    private List<ProductGroupView> listProductGroup = new();
+    private bool IsModalVisible = false;
+    private string ModalTitle = "Create Category";
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        try
+        {
+            listProductGroup = await categoryService.GetAllProductGroupsAsync();
+            await Reset();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error loading data: {ex.Message}", Severity.Error);
+        }
+    }
+    private async Task Reset()
+    {
+        IsModalVisible = false;
+        productgroup.GroupId = 0;
+        productgroup.GroupUnder = 0;
+        productgroup.GroupName = string.Empty;
+        productgroup.Narration = string.Empty;
+        productgroup.Image = string.Empty;
+        productgroup.AddedDate = DateTime.UtcNow;
+    }
+
+    private async Task ShowModal()
+    {
+        ModalTitle = "Create Category";
+        await Reset();
+        IsModalVisible = true;
+    }
+    private async Task Save()
+    {
+        try
+        {
+            if (productgroup.GroupId == 0)
+            {
+                int value = await categoryService.AddProductGroupAsync(productgroup);
+                if (value > 0)
+                {
+                    Snackbar.Add("Category created successfully", Severity.Success);
+                    await LoadData();
+                }
+                else
+                {
+                    Snackbar.Add("Category name already exists.", Severity.Info);
+                }
+            }
+            else
+            {
+                bool isUpdated = await categoryService.UpdateProductGroupAsync(productgroup);
+                if (isUpdated == true)
+                {
+                    Snackbar.Add("Category updated successfully", Severity.Success);
+                    await LoadData();
+                }
+                else
+                {
+                    Snackbar.Add("Category name already exists.", Severity.Info);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error saving Category: {ex.Message}", Severity.Success);
+        }
+    }
+    private async Task Edit(int id)
+    {
+        try
+        {
+            ModalTitle = "Edit Category";
+            productgroup = await categoryService.GetProductGroupByIdAsync(id);
+            IsModalVisible = true;
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error fetching Category: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task Delete(int id)
+    {
+        try
+        {
+            // Show a confirmation dialog to the user
+            bool confirmed = await JsRuntime.InvokeAsync<bool>("confirm", "Are you sure you want to delete this Category?");
+
+            if (!confirmed)
+            {
+                return; // User canceled the action
+            }
+
+            // Attempt to delete the ProductGroup
+            bool isDeleted = await categoryService.DeleteProductGroupAsync(id);
+
+            if (isDeleted == true)
+            {
+                Snackbar.Add("Category deleted successfully.", Severity.Success);
+                await LoadData(); // Reload the data after successful deletion
+            }
+            else
+            {
+                Snackbar.Add("Category cannot be deleted as it is being used.", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"An error occurred while deleting the Category: {ex.Message}", Severity.Error);
+        }
+    }
+    private async Task CloseModal()
+    {
+        IsModalVisible = false;
+    }
+    async Task OnFileChange(InputFileChangeEventArgs e)
+    {
+        var format = "image/png";
+        var resizedImage = await e.File.RequestImageFileAsync(format, 226, 226);
+        var buffer = new byte[resizedImage.Size];
+        await resizedImage.OpenReadStream().ReadAsync(buffer);
+        var imageData = $"data:{format};base64,{Convert.ToBase64String(buffer)}";
+        if (imageData == null)
+        {
+            productgroup.Image = string.Empty;
+        }
+        else
+        {
+            productgroup.Image = imageData;
+        }
+    }
+}

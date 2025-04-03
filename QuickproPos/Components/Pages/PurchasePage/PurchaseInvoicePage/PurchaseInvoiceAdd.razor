@@ -1,0 +1,666 @@
+﻿@page "/purchase/add"
+@page "/purchase/{id:int}"
+@inject PurchaseInvoiceService purchaseInvoiceService
+@inject InvoiceSettingService invoiceSettingService
+@inject UserService userService
+@inject CompanyService companyService
+@inject TaxService taxService
+@inject AccountLedgerService accountledgerService
+@inject WarehouseService warehouseService
+@inject UnitService unitService
+@inject ProductService productService
+@inject MudBlazor.ISnackbar Snackbar
+@inject IJSRuntime JsRuntime
+@inject NavigationManager NavigationManager
+
+
+<div class="container mt-4">
+    <div class="section py-4">
+        <div class="row mb-3">
+            <div class="col-12">
+                <div class="d-flex align-items-center">
+                    <h4 class="text-primary">
+                        <i class="fas fa-file-invoice-dollar me-2"></i>Purchase Invoice | Add
+                    </h4>
+                </div>
+            </div>
+        </div>
+        <div class="card">
+            <div class="card-body">
+                <!-- Form Section -->
+                <div class="row g-3">
+                    <div class="col-lg-4 col-sm-6">
+                        <div class="form-group">
+                            <label>Invoice No</label>
+                            <div class="input-group">
+                                <input type="text" class="form-control" @bind="master.VoucherNo" readonly>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-lg-4 col-sm-6">
+                        <div class="form-group">
+                            <label>Supplier Name <span class="text-danger">*</span></label>
+                            <select class="form-select" @bind="@master.LedgerId">
+                                <option value="0">Choose Supplier</option>
+                                @if (listLedger != null)
+                                {
+                                    @foreach (var supplier in listLedger)
+                                    {
+                                        <option value="@supplier.LedgerId">@supplier.LedgerName</option>
+                                    }
+                                }
+                            </select>
+                        </div>
+                    </div>
+                    <div class="col-lg-4 col-sm-6">
+                        <div class="form-group">
+                            <label>Voucher Date <span class="text-danger">*</span></label>
+                            <InputDate @bind-Value=@master.Date class="form-control" />
+                        </div>
+                    </div>
+                    <div class="col-lg-4 col-sm-6">
+                        <div class="form-group">
+                            <label>Due Date</label>
+                            <InputDate @bind-Value=@master.DueDate class="form-control" />
+                        </div>
+                    </div>
+                    <div class="col-lg-4 col-sm-6">
+                        <div class="form-group">
+                            <label>Warehouse <span class="text-danger">*</span></label>
+                            <select class="form-select" @bind="@master.WarehouseId">
+                                <option value="0">Choose Warehouse</option>
+                                @if (listWarehouse != null)
+                                {
+                                    @foreach (var supplier in listWarehouse)
+                                    {
+                                        <option value="@supplier.WarehouseId">@supplier.Name</option>
+                                    }
+                                }
+                            </select>
+                        </div>
+                    </div>
+                    <div class="col-lg-4 col-sm-6">
+                        <div class="form-group">
+                            <label>Supplier Invoice No</label>
+                            <input type="text" class="form-control" @bind="master.VendorInvoiceNo">
+                        </div>
+                    </div>
+                    <div class="col-lg-4 col-sm-6">
+                        <div class="form-group">
+                            <label>Reference No</label>
+                            <input type="text" class="form-control" @bind="master.Reference" placeholder="Reference no">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Table Section -->
+                <div class="row mt-4">
+                    <div class="table-responsive">
+                        <table class="table table-bordered align-middle">
+                            <thead class="table-light text-center">
+                                <tr>
+                                    <th class="text-start">Product</th>
+                                    <th>Qty</th>
+                                    <th>Unit</th>
+                                    <th>Rate</th>
+                                    <th>Discount(%)</th>
+                                    <th>Tax</th>
+                                    @* <th>Tax Amount</th>
+                                    <th>Gross Amount</th>
+                                    <th>Net Amount</th> *@
+                                    <th>Total</th>
+                                    <th>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @{
+                                    int sno = 0;
+                                }
+                                @foreach (var td in productList)
+                                {
+                                    <tr class="text-center">
+                                        @{
+                                            sno++;
+                                            td.Id = sno;
+                                        }
+                                        <td class="text-start">
+                                            <select class="form-select" @bind="@td.ProductId" @onclick="()=>AddUpdateProduct(td)" style="width:340px">
+                                                <option value="0">Choose Product</option>
+                                                @if (listProduct != null)
+                                                {
+                                                    @foreach (var productItems in listProduct)
+                                                    {
+                                                        <option value="@productItems.ProductId">@productItems.ProductName</option>
+                                                    }
+                                                }
+                                            </select>
+                                        </td>
+                                        <td>
+                                            <input type="number" class="form-control" @bind-value="td.Qty" style="width:100px"
+                                            @onkeyup="@(e => EditItem(td.Id))"
+                                            @onchange="@(e => EditItem(td.Id))"
+                                            @bind-value:event="oninput">
+                                        </td>
+                                        <td style="width:160px">@td.UnitName</td>
+                                        <td>
+                                            <input style="width:120px;" type="number" class="form-control" @bind-value="td.PurchaseRate"
+                                            @onkeyup="@(e => EditPurchaseRate(td.Id))"
+                                            @onchange="@(e => EditPurchaseRate(td.Id))"
+                                            @bind-value:event="oninput">
+                                        </td>
+                                        <td>
+                                            <input type="number" class="form-control" @bind-value="@td.Discount" style="width:120px"
+                                            @onkeyup="@(e => EditItem(td.Id))"
+                                            @onchange="@(e => EditItem(td.Id))"
+                                            @bind-value:event="oninput">
+                                        </td>
+                                        <td>
+                                            <select style="width:160px;" class="form-select" @bind="@td.TaxId" @onclick="()=>UpdateTaxRate(td)">
+                                                <option value="0">Choose Tax</option>
+                                                @if (listTax != null)
+                                                {
+                                                    @foreach (var tax in listTax)
+                                                    {
+                                                        <option value="@tax.TaxId">@tax.TaxName</option>
+                                                    }
+                                                }
+                                            </select>
+                                        </td>
+                                        @* <td style="width:120px;">@td.TaxAmount</td>
+                                        <td style="width:140px;">@td.GrossAmount</td>
+                                        <td style="width:140px;">@td.NetAmount</td> *@
+                                        <td style="width:160px;">@td.Amount</td>
+                                        <td>
+                                            <button class="btn btn-sm btn-danger" @onclick="@(e => DeleteItem(td.Id))">
+                                                <i class="fas fa-trash-alt"></i>
+                                            </button>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                            <tfoot>
+                                <tr>
+                                    <td colspan="8" class="text-start">
+                                        <button class="btn btn-sm btn-primary" @onclick="AddFirstRow">
+                                            <i class="fas fa-plus-circle"></i> Add Row
+                                        </button>
+                                    </td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Notes and Summary -->
+                <div class="row mt-4">
+                    <div class="col-lg-6">
+                        <div class="form-group">
+                            <label>Notes</label>
+                            <textarea class="form-control" @bind="master.Narration"></textarea>
+                        </div>
+                    </div>
+                    <div class="col-lg-6">
+                        <div class="card">
+                            <div class="card-body">
+                                <ul class="list-unstyled mb-0">
+                                    <li class="d-flex justify-content-between">
+                                        <span>Sub Total:</span>
+                                        <span>@master.TotalAmount</span>
+                                    </li>
+                                    <li class="d-flex justify-content-between">
+                                        <span>Flat Discount(%):</span>
+                                        <input type="number" class="form-control text-end w-50 d-inline"
+                                        @bind="master.DisPer" @onkeyup="CalculateTotal" @onclick="CalculateTotal" @bind:event="oninput">
+                                    </li>
+                                    <li class="d-flex justify-content-between">
+                                        <span>Taxable Total:</span>
+                                        <span>@master.NetAmounts</span>
+                                    </li>
+                                    <li class="d-flex justify-content-between">
+                                        <span>Tax Amount:</span>
+                                        <span>@master.TotalTax</span>
+                                    </li>
+                                    <li class="d-flex justify-content-between">
+                                        <span>Round Off:</span>
+                                        <span>@master.RoundOff</span>
+                                    </li>
+                                    <li class="d-flex justify-content-between">
+                                        <span>Grand Total:</span>
+                                        <span>@master.GrandTotal</span>
+                                    </li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Actions -->
+                <div class="row mt-4">
+                    <div class="col-lg-12 text-end">
+                        <a href="/purchase" class="btn btn-secondary me-2">
+                            <i class="fas fa-times"></i> Cancel
+                        </a>
+                        <button type="button" class="btn btn-primary" @onclick="Save" disabled="@(isProcessing)">
+                            @if (isProcessing)
+                            {
+                                <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true">Processing</span>
+                            }
+                            else
+                            {
+                                <i class="fas fa-save"></i> <label>Save</label>
+                            }
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+@code {
+    [Parameter]
+    public int id { get; set; }
+    private PurchaseMaster master = new PurchaseMaster();
+    List<AccountLedgerView> listLedger;
+    List<Warehouse> listWarehouse;
+    List<ProductView> listProduct;
+    List<Tax> listTax;
+    ProductView product = new ProductView();
+    ProductView viewProduct = new ProductView();
+    int editedID = 0;
+    List<ProductView> productList = new List<ProductView>();
+    //HoldDeleteItem
+    List<DeleteItem> deleteNo = new List<DeleteItem>();
+    private CompanyView company;
+    int voucherTypeId = 8; //Purchase Invoice Voucher
+    bool isProcessing;
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+    private async Task LoadData()
+    {
+        try
+        {
+            company = await companyService.GetAllCompaniesByIdAsync(1);
+            if(id == 0)
+            {
+                var invoice = await invoiceSettingService.GetInvoiceSettingByIdAsync(voucherTypeId);
+                listLedger = await accountledgerService.GetAllAccountLedgersByIdAsync(22);
+                listTax = await taxService.GetAllTaxsAsync();
+                listWarehouse = await warehouseService.GetAllWarehousesAsync();
+                listProduct = await productService.GetAllProductsAsync();
+                string strSerialNo = await purchaseInvoiceService.GetSerialNo();
+                master.VoucherNo = $"{invoice.Suffix ?? string.Empty}-{strSerialNo}-{invoice.Prefix ?? string.Empty}";
+                master.SerialNo = strSerialNo;
+                master.LedgerId = 0;
+                master.WarehouseId = 0;
+                master.VendorInvoiceNo = string.Empty;
+                master.VendorInvoiceDate = DateTime.UtcNow;
+                master.Date = DateTime.UtcNow;
+                master.DueDate = DateTime.UtcNow;
+                viewProduct.TaxId = 1;
+                master.TaxId = 1;
+                master.Narration = string.Empty;
+                master.Reference = string.Empty;
+                master.PurchaseOrderMasterId = 0;
+                var currentUser = await userService.GetCurrentUser(); // Fetch the current user
+                master.UserId = currentUser.Username;
+                AddFirstRow();
+                StateHasChanged();
+            }
+            else
+            {
+                master = await purchaseInvoiceService.GetByIdAsync(id);
+                listLedger = await accountledgerService.GetAllAccountLedgersByIdAsync(22);
+                listTax = await taxService.GetAllTaxsAsync();
+                listWarehouse = await warehouseService.GetAllWarehousesAsync();
+                productList = await purchaseInvoiceService.GetAllByPurchaseMasterDetails(id);
+                listProduct = await productService.GetAllProductsAsync();
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error loading data: {ex.Message}", Severity.Error);
+        }
+    }
+    private async void AddFirstRow()
+    {
+        var myItem = new ProductView()
+            {
+                Id = productList.Count() + 1,
+                Qty = 0,
+                ProductId = 0,
+                TaxId = 0,
+                UnitId = 0,
+                BatchId = 0,
+                Discount = 0,
+                TaxRate = 0,
+                GrossAmount = 0,
+                DiscountAmount = 0,
+                NetAmount = 0,
+                TaxAmount = 0,
+                TotalAmount = 0,
+                PurchaseDetailsId = 0
+            };
+        productList.Add(myItem);
+    }    
+    private async void Save()
+    {
+        isProcessing = true;
+
+        try
+        {
+            // Check if at least one product is added
+            if (!productList.Any())
+            {
+                Snackbar.Add("Add at least 1 product", Severity.Error);
+                return;
+            }
+
+            // Check for zero quantity in any product
+            foreach (var proItem in productList)
+            {
+                if (proItem.Qty == 0)
+                {
+                    Snackbar.Add("Transactions cannot be created with Zero Quantity", Severity.Error);
+                    return;
+                }
+            }
+
+            // Validate master fields
+            if (master.LedgerId == 0)
+            {
+                Snackbar.Add("Select a supplier.", Severity.Error);
+                return;
+            }
+
+            if (string.IsNullOrWhiteSpace(master.VoucherNo))
+            {
+                Snackbar.Add("Type voucher number.", Severity.Error);
+                return;
+            }
+
+            if (master.GrandTotal == 0)
+            {
+                Snackbar.Add("Grand Total cannot be zero.", Severity.Error);
+                return;
+            }
+
+            if (master.WarehouseId == 0)
+            {
+                Snackbar.Add("Choose a warehouse.", Severity.Error);
+                return;
+            }
+            if (id == 0)
+            {
+                await SaveAsync();
+            }
+            else
+            {
+                await UpdateAsync();
+            }
+        }
+        finally
+        {
+            isProcessing = false;
+        }
+    }
+    private async Task SaveAsync()
+    {
+        // Proceed with saving if all validations pass
+        master.TotalAmount = master.TotalAmount;
+        master.TaxRate = 0;
+        master.PayAmount = 0;
+        master.PreviousDue = master.GrandTotal;
+        master.BalanceDue = master.GrandTotal;
+        master.FinancialYearId = company.FinancialYearId;
+        master.VoucherTypeId = voucherTypeId;
+        master.AddedDate = DateTime.UtcNow;
+
+        // Prepare product details
+        foreach (var item in productList)
+        {
+            if (item.ProductId > 0)
+            {
+                var details = new PurchaseDetails
+                    {
+                        ProductId = item.ProductId,
+                        Qty = item.Qty,
+                        UnitId = item.UnitId,
+                        Rate = item.PurchaseRate,
+                        Discount = item.Discount,
+                        DiscountAmount = item.DiscountAmount,
+                        TaxId = item.TaxId == 0 ? 1 : item.TaxId,
+                        TaxRate = item.TaxRate,
+                        TaxAmount = item.TaxAmount,
+                        BatchId = item.BatchId,
+                        GrossAmount = item.GrossAmount,
+                        NetAmount = item.NetAmount,
+                        Amount = item.Amount,
+                        OrderDetailsId = item.OrderDetailsId
+                    };
+                master.listOrder.Add(details);
+            }
+        }
+
+        // Set transaction status
+        master.Status = "Pending";
+        master.PaymentStatus = "Pending";
+
+        // Save the transaction
+        int result = await purchaseInvoiceService.SaveAsync(master);
+
+        if (result > 0)
+        {
+            Snackbar.Add("Purchase invoice created successfully.", Severity.Success);
+            NavigationManager.NavigateTo($"/purchase/details/{result}");
+        }
+        else
+        {
+            Snackbar.Add("Invalid transaction.", Severity.Info);
+        }
+    }
+    private async Task UpdateAsync()
+    {
+        master.ModifyDate = DateTime.UtcNow;
+
+        // Prepare product details
+        foreach (var item in productList)
+        {
+            if (item.ProductId > 0)
+            {
+                var details = new PurchaseDetails
+                    {
+                        PurchaseDetailsId = item.PurchaseDetailsId,
+                        PurchaseMasterId = master.PurchaseMasterId,
+                        ProductId = item.ProductId,
+                        Qty = item.Qty,
+                        UnitId = item.UnitId,
+                        Rate = item.PurchaseRate,
+                        Discount = item.Discount,
+                        DiscountAmount = item.DiscountAmount,
+                        TaxId = item.TaxId == 0 ? 1 : item.TaxId,
+                        TaxRate = item.TaxRate,
+                        TaxAmount = item.TaxAmount,
+                        BatchId = item.BatchId,
+                        GrossAmount = item.GrossAmount,
+                        NetAmount = item.NetAmount,
+                        Amount = item.Amount,
+                        OrderDetailsId = item.OrderDetailsId
+                    };
+                master.listOrder.Add(details);
+            }
+        }
+        foreach (var items in deleteNo)
+        {
+            DeleteItem details = new DeleteItem();
+            if (items != null)
+            {
+                details.PurchaseDetailsId = items.PurchaseDetailsId;
+                master.listDelete.Add(details);
+            }
+
+        }
+
+        // Update the transaction
+        bool result = await purchaseInvoiceService.UpdateAsync(master);
+
+        if (result == true)
+        {
+            Snackbar.Add("Purchase invoice updated successfully.", Severity.Success);
+            NavigationManager.NavigateTo($"/purchase/details/{master.PurchaseMasterId}");
+        }
+        else
+        {
+            Snackbar.Add("Invalid transaction.", Severity.Info);
+        }
+    }
+    private async void AddUpdateProduct(ProductView product)
+    {
+        var pro = listProduct.FirstOrDefault(p => p.ProductId == product.ProductId);
+        if (pro != null)
+        {
+            var added = productList.FirstOrDefault(p => p.Id == product.Id);
+            if (added != null)
+            {
+                added.Qty = 1;
+                added.PurchaseRate = pro.PurchaseRate;
+                added.UnitId = pro.UnitId;
+                added.UnitName = pro.UnitName;
+                added.Includingpurchasetax = pro.Includingpurchasetax;
+                //GetTaxRate
+                added.TaxId = pro.TaxId;
+                var taxRate = await taxService.GetTaxByIdAsync(pro.TaxId);
+                added.TaxRate = taxRate.Rate;
+                added.CalculateRowAmounts(company);
+                CalculateTotal();
+                StateHasChanged();
+            }
+            else
+            {
+
+            }
+        }
+        else
+        {
+            product.ProductId = 0;
+            product.UnitId = 0;
+            product.Qty = 1;
+            product.PurchaseRate = 0;
+            product.TaxId = 0;
+            product.TaxRate = 0;
+            product.UnitName = string.Empty;
+            product.BatchId = 0;
+            product.BatchNo = string.Empty;
+            product.Includingpurchasetax = string.Empty;
+            product.CalculateRowAmounts(company);
+            CalculateTotal();
+            StateHasChanged();
+        }
+    }
+    private async void UpdateTaxRate(ProductView product)
+    {
+        var proTax = listTax.FirstOrDefault(p => p.TaxId == product.TaxId);
+        if (proTax != null)
+        {
+            var added = productList.FirstOrDefault(p => p.Id == product.Id);
+            if (added != null)
+            {
+                added.TaxRate = proTax.Rate;
+                added.CalculateRowAmounts(company);
+                CalculateTotal();
+                StateHasChanged();
+            }
+            else
+            {
+                added.TaxRate = 0;
+            }
+        }
+        else
+        {
+            product.TaxRate = 0;
+            product.CalculateRowAmounts(company);
+            CalculateTotal();
+            StateHasChanged();
+        }
+    }
+
+    void EditPurchaseRate(int id)
+    {
+        var myTodo = productList.FirstOrDefault(x => x.Id == id);
+
+        if (myTodo != null)
+        {
+            myTodo.CalculateRowAmounts(company);
+            EditItem(id);
+        }
+    }
+
+    void EditItem(int id)
+    {
+        var myTodo = productList.FirstOrDefault(x => x.Id == id);
+
+        if (myTodo != null)
+        {
+
+            myTodo.CalculateRowAmounts(company);
+            master.CalculatePurchase(productList, company);
+        }
+        CalculateTotal();
+        StateHasChanged();
+    }
+    void OnFlatDiscountChange()
+    {
+        if (master.DisPer <= 0)
+        {
+            master.DisPer = 0;
+        }
+        foreach (var item in productList)
+        {
+
+            item.FlatDiscount = master.DisPer;
+            item.CalculateRowAmounts(company);
+        }
+
+        CalculateTotal();
+        StateHasChanged();
+    }
+    private async Task DeleteItem(int id)
+    {
+        var proTask = productList.FirstOrDefault(x => x.Id == id);
+        if (proTask.PurchaseDetailsId == 0) 
+        {
+            productList.Remove(proTask);
+        }
+        else
+        {
+            //HoldId
+            productList.Remove(proTask);
+            var myHoldId = new DeleteItem
+                {
+                    PurchaseDetailsId = proTask.PurchaseDetailsId,
+                };
+            deleteNo.Add(myHoldId);
+        }
+        product = new ProductView();
+
+        CalculateTotal();
+        StateHasChanged();
+    }
+    void CalculateTotal()
+    {
+        if (master.DisPer <= 0)
+        {
+            master.DisPer = 0;
+        }
+        foreach (var item in productList)
+        {
+
+            item.FlatDiscount = master.DisPer;
+            item.CalculateRowAmounts(company);
+        }
+        master.CalculatePurchase(productList, company);
+    }
+}

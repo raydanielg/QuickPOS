@@ -1,0 +1,207 @@
+﻿@page "/sales-return/details/{id:int}"
+@inject CompanyService companyService
+@inject AccountLedgerService accountledgerService
+@inject TaxService taxService
+@inject SalesReturnService salesreturnService
+@inject IPrintingService PrintingService
+@inject MudBlazor.ISnackbar Snackbar
+@inject IJSRuntime JsRuntime
+@inject NavigationManager NavigationManager
+
+<div class="container mt-4">
+    <div class="py-4">
+        <!-- Title Section -->
+        <div class="row mb-3">
+            <div class="col-12">
+                <h4 class="text-primary d-flex align-items-center">
+                    <i class="fas fa-file-invoice-dollar me-2"></i> Sales Return | Print
+                </h4>
+            </div>
+        </div>
+
+        <!-- Invoice Action Section -->
+        <div class="card mb-4 shadow-sm">
+            <div class="card-body">
+                <ul class="list-inline">
+                    <li class="list-inline-item">
+                        <a href="/sales-return/@master.SalesReturnMasterId" class="btn btn-sm btn-primary">
+                            <i class="fas fa-edit me-1"></i> Edit
+                        </a>
+                    </li>
+                    <li class="list-inline-item">
+                        <button class="btn btn-sm btn-success" @onclick="@(_ => PrintingService.Print("printable-form", PrintType.Html))">
+                            <i class="fas fa-print me-1"></i> Print
+                        </button>
+                    </li>
+                    <li class="list-inline-item">
+                        <button class="btn btn-sm btn-danger" @onclick="()=>PrintDiv()">
+                            <i class="fas fa-file-pdf me-1"></i> PDF
+                        </button>
+                    </li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Invoice Details Section -->
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <div id="printable-form">
+                    <div class="row mb-4">
+                        <table class="table table-bordered table-sm">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Customer Info</th>
+                                    <th>Company Info</th>
+                                    <th>Invoice Info</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <!-- Supplier Info -->
+                                    <td>
+                                        <strong>@ledger.LedgerName</strong><br />
+                                        @ledger.Email<br />
+                                        @ledger.Phone<br />
+                                        @ledger.Address<br />
+                                    </td>
+                                    <!-- Company Info -->
+                                    <td>
+                                        <strong>@company?.CompanyName</strong><br />
+                                        @company?.Email<br />
+                                        @company?.PhoneNo<br />
+                                        @company?.Address<br />
+                                    </td>
+                                    <!-- Invoice Info -->
+                                    <td>
+                                        <strong>Invoice No:</strong> @master.VoucherNo<br />
+                                        <strong>Date:</strong> @master.Date<br />
+                                        <strong>Status:</strong> @master.Status<br />
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                <!-- Product Table -->
+                <table class="table table-bordered">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Product Name</th>
+                            <th>Qty</th>
+                            <th>Unit</th>
+                            <th class="text-end">Price</th>
+                            <th class="text-end">Discount</th>
+                            <th class="text-end">Tax</th>
+                            <th class="text-end">Total</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @if (productList != null)
+                        {
+                            @foreach (var item in productList)
+                            {
+                                <tr>
+                                    <td>@item.ProductName</td>
+                                    <td>@item.Qty</td>
+                                    <td>@item.UnitName</td>
+                                    <td class="text-end">@item.PurchaseRate</td>
+                                    <td class="text-end">@item.DiscountAmount</td>
+                                    <td class="text-end">
+                                        @if (item.TaxId > 0)
+                                        {
+                                            var viewsTax = listTax.FirstOrDefault(x => x.TaxId == item.TaxId);
+                                            @viewsTax?.TaxName
+                                        }
+                                        else
+                                        {
+                                            <label>-</label>
+                                        }
+                                    </td>
+                                    <td class="text-end">@item.Amount</td>
+                                </tr>
+                            }
+                        }
+                    </tbody>
+                    <tfoot>
+                        <tr>
+                            <td colspan="5"></td>
+                            <th>Sub Total</th>
+                            <td class="text-end">@master.TotalAmount</td>
+                        </tr>
+                        <tr>
+                            <td colspan="5"></td>
+                            <th>Discount (%)</th>
+                            <td class="text-end">@master.DisPer</td>
+                        </tr>
+                        <tr>
+                            <td colspan="5"></td>
+                            <th>Taxable Total</th>
+                            <td class="text-end">@master.NetAmounts</td>
+                        </tr>
+                        <tr>
+                            <td colspan="5"></td>
+                            <th>Tax Amount</th>
+                            <td class="text-end">@master.TotalTax</td>
+                        </tr>
+                        <tr>
+                            <td colspan="5"></td>
+                            <th>Round Off</th>
+                            <td class="text-end">@master.RoundOff</td>
+                        </tr>
+                        <tr>
+                            <td colspan="5"></td>
+                            <th>Grand Total</th>
+                            <td class="text-end">@company?.CurrencySymbol @master.GrandTotal</td>
+                        </tr>
+                    </tfoot>
+                </table>
+
+                <!-- Additional Details -->
+                <div class="mt-4">
+                    <strong>Amount In Words:</strong> @strNumberToWords<br />
+                    <strong>Notes:</strong> @master.Narration<br />
+                    <strong>Created by:</strong> @master.UserId<br />
+                    <strong>Date:</strong> @master.AddedDate
+                </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter]
+    public int id { get; set; }
+    private SalesReturnMaster master = new SalesReturnMaster();
+    private AccountLedger ledger = new AccountLedger();
+    List<ProductView> productList = new List<ProductView>();
+    List<Tax> listTax;
+    private CompanyView company;
+    string strNumberToWords;
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+    private async Task LoadData()
+    {
+        try
+        {
+            company = await companyService.GetAllCompaniesByIdAsync(1);
+            master = await salesreturnService.GetByIdAsync(id);
+            productList = await salesreturnService.GetAllBySalesReturnMasterDetails(id);
+            listTax = await taxService.GetAllTaxsAsync();
+            ledger = await accountledgerService.GetAccountLedgerByIdAsync(master.LedgerId);
+            if (master != null)
+            {
+                strNumberToWords = NumberToWords.ConvertAmount(Convert.ToDouble(master.GrandTotal.ToString()));
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error loading data: {ex.Message}", Severity.Error);
+        }
+    }
+    private async Task PrintDiv()
+    {
+        await JsRuntime.InvokeVoidAsync("printDiv", "printable-form");
+    }
+}

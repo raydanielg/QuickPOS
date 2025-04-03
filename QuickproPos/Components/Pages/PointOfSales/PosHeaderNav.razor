@@ -1,0 +1,64 @@
+﻿@inject MudBlazor.ISnackbar Snackbar
+<div class="container-fluid pos-header">
+
+    <!-- Header Container -->
+    <div class="row">
+        <!-- Location and DateTime -->
+        <div class="col-md-10 d-flex align-items-center mb-3 mb-md-0">
+            <p class="mb-0 me-2 fw-bold">Location:</p>
+            <div class="me-3" style="width: 28%;">
+                <select class="form-select" aria-label="Select Warehouse" @bind="@master.WarehouseId" style="height: 38px;">
+                    <option value="0">Choose</option>
+                    @if (WarehouseList != null)
+                    {
+                        foreach (var warehouse in WarehouseList)
+                        {
+                            <option value="@warehouse.WarehouseId">@warehouse.Name</option>
+                        }
+                    }
+                </select>
+            </div>
+            <div class="d-none d-md-flex bg-primary text-white py-1 px-2 rounded">
+                <span class="curr_datetime fw-semibold">
+                    <DateTimeDisplay />
+                </span>
+            </div>
+        </div>
+
+        <!-- Buttons Section -->
+        <div class="col-md-2 d-flex flex-wrap justify-content-between align-items-center gap-2">
+            <a href="/dashboard" class="btn btn-outline-secondary d-flex align-items-center" title="Go Back">
+                <i class="fa fa-backward text-primary"></i>
+                <span class="d-inline d-md-none ms-2">Go Back</span>
+            </a>
+            <a href="/dashboard" class="btn btn-primary d-flex align-items-center" id="add_expense" title="Dashboard">
+                <i class="fa fa-tachometer-alt"></i> Dashboard
+            </a>
+        </div>
+    </div>
+</div>
+
+    @code
+    {
+    [Parameter]
+    public SalesMaster master { get; set; } = new();
+
+    [Parameter]
+    public List<Warehouse> WarehouseList { get; set; } = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+    private async Task LoadData()
+    {
+        try
+        {
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error loading data: {ex.Message}", Severity.Error);
+        }
+    }
+    }

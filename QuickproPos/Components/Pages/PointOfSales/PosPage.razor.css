@@ -1,0 +1,229 @@
+﻿/* Header Section */
+.pos-header {
+    box-shadow: rgba(17, 17, 26, 0.1) 0px 0px 16px;
+    background-color: #fff;
+    border-radius: 1rem;
+    margin: 1rem 0;
+    padding: 1rem;
+}
+
+    .pos-header .btn-custom {
+        box-shadow: rgba(17, 17, 26, 0.1) 0px 0px 16px;
+        background-color: #fff;
+        border: 2px solid #ccc;
+        transition: all 0.3s ease;
+        padding: 8px 16px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+        .pos-header .btn-custom:hover {
+            background-color: rgba(255, 255, 255, 0.6);
+            transform: scale(1.05);
+        }
+
+/* Text Styles */
+.text-primary {
+    color: #00935F;
+}
+
+.text-danger {
+    color: #EF4B53;
+}
+
+.text-info {
+    color: #646EE4;
+}
+/* Items Section */
+.items-section {
+    padding-right: 15px;
+}
+.cart-container {
+    height: 500px; /* Adjust this value as needed */
+    grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); /* Grid layout for item cards */
+}
+
+/* Container for Item Cards (Add Scroll) */
+.items-container {
+    height: 500px; /* Adjust this value as needed */
+    overflow-y: auto; /* Enable vertical scrolling */
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); /* Grid layout for item cards */
+    gap: 4px; /* Spacing between items */
+    padding: 0px;
+}
+
+/* Item Card */
+.item-card {
+    height:100px;
+    border-radius: 8px;
+    border: 1px solid #ddd;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+    transition: transform 0.3s ease-in-out;
+}
+
+    .item-card:hover {
+        transform: translateY(-5px);
+    }
+
+.item-image {
+    width: 100%;
+    height: 80px;
+    object-fit: cover;
+    border-bottom: 1px solid #ddd;
+}
+
+.out-of-stock-badge {
+    position: absolute;
+    top: 10px;
+    left: 50%;
+    background-color: rgba(220, 53, 69, 0.6); /* Semi-transparent red */
+    color: white;
+    font-weight: bold;
+    padding: 8px 16px;
+    border-radius: 20px;
+    font-size: 14px;
+}
+
+.item-title {
+    margin-top: 0.1rem;
+    font-size: 12px;
+    font-weight: bold;
+    text-align:center;
+}
+
+
+/* Cart Section */
+.cart-card {
+    border-radius: 8px;
+    border: none;
+    height:640px;
+}
+
+.cart-title {
+    font-weight: bold;
+    font-size: 1.1rem;
+}
+
+.cart-btn {
+    font-size: 0.85rem;
+    border-radius: 5px;
+}
+
+.total-section {
+    font-size: 1.2rem;
+    font-weight: bold;
+    color: #333;
+}
+
+/* Fixed position for the payment buttons footer */
+.payment-buttons-footer {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background-color: #fff; /* White background */
+    padding: 15px 0;
+    box-shadow: 0 -4px 10px rgba(0, 0, 0, 0.1); /* Subtle shadow for separation */
+    z-index: 9999; /* Ensure it is always on top of other content */
+}
+
+/* Centering and styling the buttons within the footer */
+.payment-buttons {
+    display: flex;
+    justify-content: space-evenly; /* Space out buttons evenly */
+    align-items: center;
+    gap: 10px; /* Space between buttons */
+    flex-wrap: wrap; /* Allow wrapping on small screens */
+}
+
+    /* Style for each payment button */
+    .payment-buttons .payment-button {
+        font-size: 16px; /* Font size for button text */
+        padding: 12px 25px; /* Padding for larger buttons */
+        border-radius: 25px; /* Rounded corners */
+        font-weight: bold; /* Bold text for better readability */
+        min-width: 100px; /* Minimum width to maintain consistent button size */
+        transition: all 0.3s ease; /* Smooth transition for hover effect */
+    }
+
+        /* Hover effect for buttons */
+        .payment-buttons .payment-button:hover {
+            transform: translateY(-3px); /* Slightly raise the button */
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2); /* Add shadow for hover effect */
+        }
+
+/* Styling for Split Payment button */
+.split-payment-button {
+    font-size: 16px;
+    padding: 12px 40px;
+    border-radius: 25px;
+    background-color: #f1c40f; /* Yellow background for distinction */
+    color: #fff;
+    font-weight: bold;
+}
+
+    /* Hover effect for Split Payment button */
+    .split-payment-button:hover {
+        background-color: #f39c12; /* Darker shade of yellow on hover */
+    }
+
+/* Responsiveness: Stack buttons on smaller screens */
+@media (max-width: 768px) {
+    .payment-buttons {
+        flex-direction: column; /* Stack the buttons vertically on small screens */
+        align-items: center;
+    }
+
+        .payment-buttons .payment-button {
+            width: 100%; /* Make each button take full width */
+            margin-bottom: 10px; /* Add space between buttons */
+        }
+}
+.autocomplete {
+    position: relative;
+    width: 100%;
+}
+
+    .autocomplete .options {
+        position: absolute;
+        top: calc(100% + 5px); /* Dynamic positioning below input */
+        left: 0;
+        background: #fff;
+        width: 100%;
+        padding: 0;
+        z-index: 1050; /* Higher z-index for dropdown */
+        border: 1px solid #ced4da;
+        border-radius: 0.5rem;
+        box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.15);
+    }
+
+    .autocomplete .option {
+        display: block;
+        padding: 0.5rem;
+        cursor: pointer;
+        transition: background-color 0.2s, color 0.2s;
+    }
+
+        .autocomplete .option:hover {
+            background-color: #0d6efd;
+            color: #fff;
+        }
+
+        .autocomplete .option.disabled {
+            background-color: #f8f9fa;
+            color: #6c757d;
+            cursor: not-allowed;
+        }
+
+            .autocomplete .option.disabled:hover {
+                background-color: #f8f9fa;
+                color: #6c757d;
+            }
+
+    .autocomplete .badge {
+        font-size: 0.8rem;
+        padding: 0.4em 0.6em;
+        border-radius: 0.25rem;
+    }

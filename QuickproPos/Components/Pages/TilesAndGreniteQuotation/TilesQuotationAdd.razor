@@ -1,0 +1,598 @@
+﻿@page "/quotation/tiles/add"
+@page "/quotation/tiles/{id:int}"
+@inject TilesQuotationService tilesQuotationService
+@inject InvoiceSettingService invoiceSettingService
+@inject UserService userService
+@inject CompanyService companyService
+@inject AccountLedgerService accountledgerService
+@inject UnitService unitService
+@inject ProductService productService
+@inject MudBlazor.ISnackbar Snackbar
+@inject IJSRuntime JsRuntime
+@inject NavigationManager NavigationManager
+
+<style>
+    table {
+    width: 100%;
+    border-collapse: collapse;
+    }
+
+    table, th, td {
+    border: 1px solid black;
+    }
+
+    th, td {
+    padding: 8px;
+    text-align: center;
+    }
+
+    th {
+    background-color: #f2f2f2;
+    }
+
+    .total-row {
+    font-weight: bold;
+    background-color: #f9f9f9;
+    }
+</style>
+<div class="container mt-4">
+    <div class="section py-4">
+        <div class="row mb-3">
+            <div class="col-12">
+                <div class="d-flex align-items-center">
+                    <h4 class="text-primary">
+                        <i class="fas fa-file-invoice-dollar me-2"></i>Flooring & Wall Tiles Quotation | Add
+                    </h4>
+                </div>
+            </div>
+        </div>
+        <div class="card">
+            <div class="card-body">
+                <!-- Form Section -->
+                <div class="row g-3">
+                    <div class="col-lg-4 col-sm-6">
+                        <div class="form-group">
+                            <label>Invoice No</label>
+                            <div class="input-group">
+                                <input type="text" class="form-control" @bind="master.QuotationNo" readonly>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-lg-4 col-sm-6">
+                        <div class="form-group">
+                            <label>Customer Name <span class="text-danger">*</span></label>
+                            <select class="form-select" @bind="@master.LedgerId">
+                                <option value="0">Choose Customer</option>
+                                @if (listLedger != null)
+                                {
+                                    @foreach (var supplier in listLedger)
+                                    {
+                                        <option value="@supplier.LedgerId">@supplier.LedgerName</option>
+                                    }
+                                }
+                            </select>
+                        </div>
+                    </div>
+                    <div class="col-lg-4 col-sm-6">
+                        <div class="form-group">
+                            <label>Date <span class="text-danger">*</span></label>
+                            <InputDate @bind-Value=@master.Date class="form-control" />
+                        </div>
+                    </div>
+                </div>
+                <br/>
+                <!-- Table Section -->
+                <div class="row">
+                    <div class="table-responsive">
+                        <table class="table table-bordered align-middle">
+                            <thead class="table-light text-center">
+                                <tr>
+                                    <th>Item</th>
+                                    <th>Description</th>
+                                    <th colspan="2">Size (Ft)</th>
+                                    <th>Qty</th>
+                                    <th>Total Sqft</th>
+                                    <th>Tiles Sizes</th>
+                                    <th>Box Qty</th>
+                                    <th>Rate</th>
+                                    <th>Amount</th>
+                                    <th></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @{
+                                    int sno = 0;
+                                }
+                                @foreach (var td in productList)
+                                {
+                                    <tr>
+                                        @{
+                                            sno++;
+                                            td.Id = sno;
+                                        }
+                                        <td>
+                                            <select class="form-select" @bind="@td.ProductId" @onclick="()=>AddUpdateProduct(td)" style="width:340px">
+                                                <option value="0">Choose Product</option>
+                                                @if (listProduct != null)
+                                                {
+                                                    @foreach (var productItems in listProduct)
+                                                    {
+                                                        <option value="@productItems.ProductId">@productItems.ProductName</option>
+                                                    }
+                                                }
+                                            </select>
+                                        </td>
+                                        <td>
+                                            <input type="text" class="form-control" @bind-value="td.Description" style="width:100px"
+                                            @onkeyup="@(e => EditItem(td.Id))"
+                                            @onchange="@(e => EditItem(td.Id))"
+                                            @bind-value:event="oninput">
+                                        </td>
+                                        <td>
+                                            <input type="number" class="form-control" @bind-value="td.SizeLength" style="width:100px"
+                                            @onkeyup="@(e => EditItem(td.Id))"
+                                            @onchange="@(e => EditItem(td.Id))"
+                                            @bind-value:event="oninput">
+                                        </td>
+                                        <td>
+                                            <input type="number" class="form-control" @bind-value="td.SizeWidth" style="width:100px"
+                                            @onkeyup="@(e => EditItem(td.Id))"
+                                            @onchange="@(e => EditItem(td.Id))"
+                                            @bind-value:event="oninput">
+                                        </td>
+                                        <td>
+                                            <input type="number" class="form-control" @bind-value="td.Qty" style="width:100px"
+                                            @onkeyup="@(e => EditItem(td.Id))"
+                                            @onchange="@(e => EditItem(td.Id))"
+                                            @bind-value:event="oninput">
+                                        </td>
+                                        <td>
+                                            <input type="number" class="form-control" @bind-value="td.TotalSqFt" style="width:100px"
+                                            @onkeyup="@(e => EditItem(td.Id))"
+                                            @onchange="@(e => EditItem(td.Id))"
+                                            @bind-value:event="oninput">
+                                        </td>
+                                        <td>
+                                            <input type="text" class="form-control" @bind-value="td.TilesSizes" style="width:100px"
+                                            @onkeyup="@(e => EditItem(td.Id))"
+                                            @onchange="@(e => EditItem(td.Id))"
+                                            @bind-value:event="oninput">
+                                        </td>
+                                        <td>
+                                            <input type="number" class="form-control" @bind-value="td.BoxQty" style="width:100px"
+                                            @onkeyup="@(e => EditItem(td.Id))"
+                                            @onchange="@(e => EditItem(td.Id))"
+                                            @bind-value:event="oninput">
+                                        </td>
+                                        <td>
+                                            <input type="number" class="form-control" @bind-value="td.Rate" style="width:100px"
+                                            @onkeyup="@(e => EditItem(td.Id))"
+                                            @onchange="@(e => EditItem(td.Id))"
+                                            @bind-value:event="oninput">
+                                        </td>
+                                        <td>
+                                            <input type="number" class="form-control" @bind-value="td.Amount" style="width:100px"
+                                            @onkeyup="@(e => EditItem(td.Id))"
+                                            @onchange="@(e => EditItem(td.Id))"
+                                            @bind-value:event="oninput">
+                                        </td>
+                                        <td>
+                                            <button class="btn btn-sm btn-danger" @onclick="@(e => DeleteItem(td.Id))">
+                                                <i class="fas fa-trash-alt"></i>
+                                            </button>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                            <tfoot>
+                                <tr>
+                                    <td colspan="11" class="text-start">
+                                        <button class="btn btn-sm btn-primary" @onclick="AddFirstRow">
+                                            <i class="fas fa-plus-circle"></i> Add Row
+                                        </button>
+                                    </td>
+                                </tr>
+                            </tfoot>
+                        </table>
+
+                    </div>
+                </div>
+
+                <!-- Notes and Summary -->
+                <div class="row mt-4">
+                    <div class="col-lg-6">
+                        <div class="form-group">
+                            <label>Notes</label>
+                            <textarea class="form-control" @bind="master.Narration"></textarea>
+                        </div>
+                    </div>
+                    <div class="col-lg-6">
+                        <div class="card">
+                            <div class="card-body">
+                                <ul class="list-unstyled mb-0">
+                                    <li class="d-flex justify-content-between">
+                                        <span>>Total Amount:</span>
+                                        <span>@master.TotalAmount</span>
+                                    </li>
+                                    <li class="d-flex justify-content-between">
+                                        <span>Discount Amount</span>
+                                        <input type="number" class="form-control text-end w-50 d-inline"
+                                        @bind="master.DiscountAmount" @onkeyup="CalculateTotal" @onclick="CalculateTotal" @bind:event="oninput">
+                                    </li>
+                                    <li class="d-flex justify-content-between">
+                                        <span>Grand Total:</span>
+                                        <span>@master.GrandTotal</span>
+                                    </li>
+                                    <li class="d-flex justify-content-between">
+                                        <span>Advance Amount:</span>
+                                        <input type="number" class="form-control text-end w-50 d-inline"
+                                        @bind="master.AdvanceAmount" @onkeyup="CalculateTotal" @onclick="CalculateTotal" @bind:event="oninput">
+                                    </li>
+                                    <li class="d-flex justify-content-between">
+                                        <span>Pending Amount:</span>
+                                        <span>@master.PendingAmount</span>
+                                    </li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Actions -->
+                <div class="row mt-4">
+                    <div class="col-lg-12 text-end">
+                        <a href="/quotation/tiles" class="btn btn-secondary me-2">
+                            <i class="fas fa-times"></i> Cancel
+                        </a>
+                        <button type="button" class="btn btn-primary" @onclick="Save" disabled="@(isProcessing)">
+                            @if (isProcessing)
+                            {
+                                <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true">Processing</span>
+                            }
+                            else
+                            {
+                                <span><i class="fas fa-save"></i>Save</span>
+                            }
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter]
+    public int id { get; set; }
+    private TilesQuotationMaster master = new TilesQuotationMaster();
+    List<AccountLedgerView> listLedger;
+    List<ProductView> listProduct;
+    ProductView product = new ProductView();
+    ProductView viewProduct = new ProductView();
+    int editedID = 0;
+    List<ProductView> productList = new List<ProductView>();
+    //HoldDeleteItem
+    List<DeleteItem> deleteNo = new List<DeleteItem>();
+    private CompanyView company;
+    int voucherTypeId = 20; // Tiles Quotation Voucher Type
+    bool isProcessing;
+    private bool IsModalVisible = false;
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+    private async Task LoadData()
+    {
+        try
+        {
+            company = await companyService.GetAllCompaniesByIdAsync(1);
+            if(id == 0)
+            {
+                var invoice = await invoiceSettingService.GetInvoiceSettingByIdAsync(voucherTypeId);
+                listLedger = await accountledgerService.GetAllAccountLedgersByIdAsync(26);
+                listProduct = await productService.GetAllProductsAsync();
+                string strSerialNo = await tilesQuotationService.GetSerialNo();
+                master.QuotationNo = $"{invoice.Suffix ?? string.Empty}-{strSerialNo}-{invoice.Prefix ?? string.Empty}";
+                master.SerialNo = strSerialNo;
+                master.LedgerId = 0;
+                master.Date = DateTime.UtcNow;
+                master.TotalAmount = 0;
+                master.DiscountAmount = 0;
+                master.TotalTax = 0;
+                master.TotalSqft = 0;
+                master.TotalBox = 0;
+                master.GrandTotal = 0;
+                master.PendingAmount = 0;
+                var currentUser = await userService.GetCurrentUser(); // Fetch the current user
+                master.UserId = currentUser.Username;
+                AddFirstRow();
+                StateHasChanged();
+            }
+            else
+            {
+                master = await tilesQuotationService.GetByIdAsync(id);
+                listLedger = await accountledgerService.GetAllAccountLedgersByIdAsync(26);
+                productList = await tilesQuotationService.GetAllByTileQuotationMasterDetails(id);
+                listProduct = await productService.GetAllProductsAsync();
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error loading data: {ex.Message}", Severity.Error);
+        }
+    }
+    private async void AddFirstRow()
+    {
+        var myItem = new ProductView()
+            {
+                Id = productList.Count() + 1,
+                Qty = 0,
+                ProductId = 0,
+                UnitId = 0,
+                SizeLength = 0,
+                SizeWidth = 0,
+                TotalSqFt = 0,
+                TilesSizes = string.Empty,
+                BoxQty = 0,
+                Rate = 0,
+                Amount = 0,
+                Description = string.Empty,
+                TilesQuotatinDetailsId = 0
+            };
+        productList.Add(myItem);
+    }
+    private async void Save()
+    {
+        isProcessing = true;
+
+        try
+        {
+            // Check if at least one product is added
+            if (!productList.Any())
+            {
+                Snackbar.Add("Add at least 1 product", Severity.Error);
+                return;
+            }
+
+            // Check for zero quantity in any product
+            foreach (var proItem in productList)
+            {
+                if (proItem.Qty == 0)
+                {
+                    Snackbar.Add("Transactions cannot be created with Zero Quantity", Severity.Error);
+                    return;
+                }
+            }
+
+            // Validate master fields
+            if (master.LedgerId == 0)
+            {
+                Snackbar.Add("Select a valid customer.", Severity.Error);
+                return;
+            }
+
+            if (string.IsNullOrWhiteSpace(master.QuotationNo))
+            {
+                Snackbar.Add("Type quotation number.", Severity.Error);
+                return;
+            }
+
+            if (master.GrandTotal == 0)
+            {
+                Snackbar.Add("Grand Total cannot be zero.", Severity.Error);
+                return;
+            }
+            if (id == 0)
+            {
+                await SaveAsync();
+            }
+            else
+            {
+                await UpdateAsync();
+            }
+        }
+        finally
+        {
+            isProcessing = false;
+        }
+    }
+    private async Task SaveAsync()
+    {
+        // Proceed with saving if all validations pass
+        master.FinancialYearId = company.FinancialYearId;
+        master.VoucherTypeId = voucherTypeId;
+        master.AddedDate = DateTime.UtcNow;
+        foreach (var item in productList)
+        {
+            if (item.ProductId > 0)
+            {
+                var details = new TilesQuotationDetails
+                    {
+                        ProductId = item.ProductId,
+                        Qty = item.Qty,
+                        UnitId = item.UnitId,
+                        SizeLength = item.SizeLength,
+                        SizeWidth = item.SizeWidth,
+                        TotalSqFt = item.TotalSqFt,
+                        TilesSizes = item.TilesSizes,
+                        BoxQty = item.BoxQty,
+                        Rate = item.Rate,
+                        Amount = item.Amount,
+                        Description = item.Description,
+                        TilesQuotatinDetailsId = item.TilesQuotatinDetailsId
+                    };
+                master.listOrder.Add(details);
+            }
+        }
+        // Save the transaction
+        int result = await tilesQuotationService.SaveAsync(master);
+
+        if (result > 0)
+        {
+            Snackbar.Add("Tiles quotation invoice created successfully.", Severity.Success);
+            NavigationManager.NavigateTo($"/quotation/tiles/details/{result}");
+        }
+        else
+        {
+            Snackbar.Add("Invalid transaction.", Severity.Info);
+        }
+    }
+    private async Task UpdateAsync()
+    {
+        master.ModifyDate = DateTime.UtcNow;
+
+        // Prepare product details
+        foreach (var item in productList)
+        {
+            if (item.ProductId > 0)
+            {
+                var details = new TilesQuotationDetails
+                    {
+                        TilesQuotatinDetailsId = item.TilesQuotatinDetailsId,
+                        TileQuotationid = item.TileQuotationid,
+                        ProductId = item.ProductId,
+                        Qty = item.Qty,
+                        UnitId = item.UnitId,
+                        SizeLength = item.SizeLength,
+                        SizeWidth = item.SizeWidth,
+                        TotalSqFt = item.TotalSqFt,
+                        TilesSizes = item.TilesSizes,
+                        BoxQty = item.BoxQty,
+                        Rate = item.Rate,
+                        Amount = item.Amount,
+                        Description = item.Description
+                    };
+                master.listOrder.Add(details);
+            }
+        }
+        foreach (var items in deleteNo)
+        {
+            DeleteItem details = new DeleteItem();
+            if (items != null)
+            {
+                details.TilesQuotatinDetailsId = items.TilesQuotatinDetailsId;
+                master.listDelete.Add(details);
+            }
+
+        }
+
+        // Update the transaction
+        bool result = await tilesQuotationService.UpdateAsync(master);
+
+        if (result == true)
+        {
+            Snackbar.Add("Tiles quotation invoice updated successfully.", Severity.Success);
+            NavigationManager.NavigateTo($"/quotation/tiles/details/{master.TileQuotationid}");
+        }
+        else
+        {
+            Snackbar.Add("Invalid transaction.", Severity.Info);
+        }
+    }
+    private async void AddUpdateProduct(ProductView product)
+    {
+        var pro = listProduct.FirstOrDefault(p => p.ProductId == product.ProductId);
+        if (pro != null)
+        {
+            var added = productList.FirstOrDefault(p => p.Id == product.Id);
+            if (added != null)
+            {
+                added.Qty = 1;
+                added.Rate = pro.Rate;
+                added.UnitId = pro.UnitId;
+                added.UnitName = pro.UnitName;
+                added.Description = pro.Description;
+                added.CalculateTileQuotationAmounts(company);
+                CalculateTotal();
+                StateHasChanged();
+            }
+            else
+            {
+
+            }
+        }
+        else
+        {
+            product.Qty = 0;
+            product.ProductId = 0;
+            product.UnitId = 0;
+            product.SizeLength = 0;
+            product.SizeWidth = 0;
+            product.TotalSqFt = 0;
+            product.TilesSizes = string.Empty;
+            product.BoxQty = 0;
+            product.Rate = 0;
+            product.Amount = 0;
+            product.Description = string.Empty;
+            product.TilesQuotatinDetailsId = 0;
+            product.CalculateTileQuotationAmounts(company);
+            CalculateTotal();
+            StateHasChanged();
+        }
+    }
+    void EditItem(int id)
+    {
+        var myTodo = productList.FirstOrDefault(x => x.Id == id);
+
+        if (myTodo != null)
+        {
+
+            myTodo.CalculateTileQuotationAmounts(company);
+            master.CalculateTileQuotation(productList, company);
+        }
+        CalculateTotal();
+        StateHasChanged();
+    }
+    void OnFlatDiscountChange()
+    {
+        if (master.DiscountAmount <= 0)
+        {
+            master.DiscountAmount = 0;
+        }
+        foreach (var item in productList)
+        {
+
+            item.FlatDiscount = master.DiscountAmount;
+            item.CalculateTileQuotationAmounts(company);
+        }
+
+        CalculateTotal();
+        StateHasChanged();
+    }
+    private async Task DeleteItem(int id)
+    {
+        var proTask = productList.FirstOrDefault(x => x.Id == id);
+        if (proTask.TilesQuotatinDetailsId == 0)
+        {
+            productList.Remove(proTask);
+        }
+        else
+        {
+            //HoldId
+            productList.Remove(proTask);
+            var myHoldId = new DeleteItem
+                {
+                    TilesQuotatinDetailsId = proTask.TilesQuotatinDetailsId,
+                };
+            deleteNo.Add(myHoldId);
+        }
+        product = new ProductView();
+
+        CalculateTotal();
+        StateHasChanged();
+    }
+    void CalculateTotal()
+    {
+        if (master.DiscountAmount <= 0)
+        {
+            master.DiscountAmount = 0;
+        }
+        foreach (var item in productList)
+        {
+
+            item.FlatDiscount = master.DiscountAmount;
+            item.CalculateTileQuotationAmounts(company);
+        }
+        master.CalculateTileQuotation(productList, company);
+    }
+}

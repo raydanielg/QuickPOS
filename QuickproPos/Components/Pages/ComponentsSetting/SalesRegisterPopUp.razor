@@ -1,0 +1,205 @@
+﻿@inject SalesRegisterService salesRegisterService
+@inject UserService userService
+@inject NavigationManager NavigationManager
+@inject CompanyService companyService
+@inject MudBlazor.ISnackbar Snackbar
+@inject IJSRuntime JsRuntime
+
+<div class="modal fade show d-block" style="background-color: rgba(0, 0, 0, 0.5);">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <!-- Modal Header -->
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title d-flex align-items-center">
+                    <i class="fa-solid fa-cash-register me-2"></i>
+                    Cash Register Details @if (saleReg != null)
+                    {
+                        @saleReg.OpeningTime
+                        <label>To</label>
+                        @ToTime
+                        ;
+                    }
+                </h5>
+                <button type="button" class="btn-close" @onclick="CloseModal" aria-label="Close"></button>
+            </div>
+            <!-- Modal Body -->
+            <div class="modal-body">
+                <div class="row g-3">
+                    <!-- Left Column -->
+                    <div class="col-md-8">
+                        <table class="table table-bordered table-striped align-middle">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Category</th>
+                                    <th>Amount</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>Opening Cash</td>
+                                    <td>
+                                        @if (saleReg != null)
+                                        {
+                                            @saleReg.OpeningCashAmount
+                                        }
+                                    </td>
+                                </tr>
+                                @if (listSalesRegister != null)
+                                {
+                                    @foreach (var item in listSalesRegister)
+                                    {
+                                        <tr>
+                                            <td>@item.Name Payment</td>
+                                            <td>@item.Amount</td>
+                                        </tr>
+                                    }
+                                }
+                                @if (listCloseReturn != null)
+                                {
+                                    @foreach (var item in listCloseReturn)
+                                    {
+                                        <tr>
+                                            <td>Sales Return</td>
+                                            <td>@item.SalesReturnAmount</td>
+                                        </tr>
+                                        <tr>
+                                            <td>Cash Return</td>
+                                            <td>@item.CashReturnAmount</td>
+                                        </tr>
+                                        <tr>
+                                            <td>Pay Later</td>
+                                            <td>@item.PayLater</td>
+                                        </tr>
+                                        <tr>
+                                            <td>Credit Applied Amount</td>
+                                            <td>@item.CreditAppliedAmount</td>
+                                        </tr>
+                                        <tr>
+                                            <td>Expense</td>
+                                            <td>@item.ExpenseAmount</td>
+                                        </tr>
+                                        <tr>
+                                            <td>Purchase Payment</td>
+                                            <td>@item.PurchasePayment</td>
+                                        </tr>
+                                        <tr>
+                                            <td>Closing Amount</td>
+                                            <td>@item.ClosingAmount</td>
+                                        </tr>
+                                    }
+                                }
+                                <tr class="table-info">
+                                    <td>Total Sales</td>
+                                    <td>
+                                        @if (listSalesRegister != null)
+                                        {
+                                            @listSalesRegister.Sum(x => x.Amount)
+                                        }
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <!-- Right Column -->
+                    <div class="col-md-4">
+                        <div class="form-group mb-3">
+                            <label for="cash-left" class="form-label">
+                                <i class="fa-solid fa-money-bill-wave me-1"></i> Total Cash Left in Drawer
+                            </label>
+                            <input id="cash-left" type="number" class="form-control" @bind="register.CashLeftinDrawer" readonly>
+                        </div>
+                        <div class="form-group mb-3">
+                            <label for="physical-drawer" class="form-label">
+                                <i class="fa-solid fa-drawer me-1"></i> Physical Drawer
+                            </label>
+                            <input id="physical-drawer" type="number" class="form-control"
+                            @bind="register.PhysicalDrawer" @onkeyup="CalculateDrawer" @bind:event="oninput">
+                            <small class="text-muted d-block">Short: @decShortAmount</small>
+                        </div>
+                        <div class="form-group mb-3">
+                            <label for="closing-note" class="form-label">
+                                <i class="fa-solid fa-note-sticky me-1"></i> Closing Note
+                            </label>
+                            <textarea id="closing-note" class="form-control" rows="3" @bind="register.Notes"></textarea>
+                        </div>
+                    </div>
+                </div>
+                <!-- Buttons -->
+                <div class="row mt-3">
+                    <div class="col-md-4 offset-md-4 text-center">
+                        <button type="button" class="btn btn-primary w-100" @onclick="CloseBalance">
+                            <i class="fa-solid fa-lock me-1"></i> Close Register
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+@code {
+    IList<SalesRegisterClosingBalanceView> listSalesRegister;
+    IList<SalesRegisterClosingBalanceView> listCloseReturn;
+    decimal decShortAmount = 0;
+    SalesRegister register = new();
+    SalesRegister saleReg = new();
+    DateTime ToTime;
+    UserMaster? currentUser;
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        try
+        {
+            currentUser = await userService.GetCurrentUser(); // Fetch the current user
+            ToTime = DateTime.UtcNow;
+            listSalesRegister = await salesRegisterService.CashRegisterAsync(currentUser.UserId);
+            listCloseReturn = await salesRegisterService.CloseReturnAsync(currentUser.UserId);
+            saleReg = await salesRegisterService.OpeningCashAsync(currentUser.UserId);
+            decimal decTotalCash = 0;
+            decTotalCash = listSalesRegister.Sum(x => x.Amount);
+            if (saleReg != null)
+            {
+                register.CashLeftinDrawer = Math.Round(decTotalCash + saleReg.OpeningCashAmount, 2);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error loading data: {ex.Message}", Severity.Error);
+        }
+    }
+    void CalculateDrawer()
+    {
+        decShortAmount = register.CashLeftinDrawer > register.PhysicalDrawer ? Math.Round(register.CashLeftinDrawer - register.PhysicalDrawer, 2) : 0;
+        StateHasChanged();
+    }
+
+    async Task CloseBalance()
+    {
+        register.UserId = currentUser.UserId;
+        register.ClosingCashAmount = listSalesRegister.Sum(x => x.Amount);
+        register.ClosingTime = DateTime.UtcNow;
+        register.ModifyDate = DateTime.UtcNow;
+        register.ReturnAmount = 0;
+        register.Status = "Close";
+        bool result = await salesRegisterService.CloseBalanceAsync(register);
+        if (result == true)
+        {
+            Snackbar.Add("Cash register successfully closed", Severity.Success);
+            NavigationManager.NavigateTo("/dashboard");
+        }
+        else
+        {
+            Snackbar.Add("Failed", Severity.Error);
+        }
+
+        StateHasChanged();
+    }
+
+    private async Task CloseModal()
+    {
+        NavigationManager.NavigateTo("/dashboard");
+    }
+}

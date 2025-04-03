@@ -1,0 +1,262 @@
+﻿@page "/account-ledger/add"
+@page "/account-ledger/{id:int}"
+@inject AccountLedgerService accountLedgerService
+@inject AccountGroupService accountGroupService
+@inject NavigationManager NavigationManager
+@inject MudBlazor.ISnackbar Snackbar
+@inject IJSRuntime JsRuntime
+
+<div class="container mt-4">
+    <!-- Header Section -->
+    <div class="row align-items-center mb-3">
+        <div class="col">
+            <h4>Account Ledger</h4>
+        </div>
+        <div class="col text-end">
+            <a class="btn btn-primary" href="/account-ledger">
+                <i class="fas fa-arrow-left me-2"></i> Back
+            </a>
+        </div>
+    </div>
+
+    <!-- Table Section -->
+    <div class="row">
+        <EditForm Model="model" OnValidSubmit="Save">
+            <DataAnnotationsValidator />
+            <div class="row">
+                <div class="col-md-12 form-group">
+                    <label class="control-label">Ledger Name <code>*</code></label>
+                    @if (model.IsDefault == true)
+                    {
+                        <input type="text" class="form-control" @bind="model.LedgerName" readonly>
+                    }
+                    else
+                    {
+                        <input type="text" class="form-control" @bind="model.LedgerName">
+                    }
+                    <ValidationMessage For="@(() => model.LedgerName)" class="validation-message" />
+                </div>
+            </div>
+            <div class="row">
+                <div class="col-md-6 form-group">
+                    <label class="control-label">Ledger Code <code>*</code></label>
+                    <input type="text" class="form-control" @bind="model.LedgerCode" readonly>
+                    <ValidationMessage For="@(() => model.LedgerCode)" class="validation-message" />
+                </div>
+                <div class="col-md-6 form-group">
+                    <label class="control-label">Account Group <code>*</code></label>
+                    <select class="form-select" @bind="model.AccountGroupId">
+                        <option value="0">-- Select --</option>
+                        @if (listAccountGroup != null)
+                        {
+                            // Render parent groups and their child groups
+                            foreach (var parent in listAccountGroup.Where(pg => pg.GroupUnder == 0))
+                            {
+                                // Render parent group
+                                <option value="@parent.AccountGroupId">@parent.AccountGroupName</option>
+
+                                // Render child groups under the parent
+                                @foreach (var child in listAccountGroup.Where(pg => pg.GroupUnder == parent.AccountGroupId))
+                                {
+                                    <option value="@child.AccountGroupId">-- @child.AccountGroupName</option>
+                                }
+                            }
+                        }
+                    </select>
+                    <ValidationMessage For="@(() => model.AccountGroupId)" class="validation-message" />
+                </div>
+            </div>
+            <div class="row">
+                <div class="col-md-4 form-group">
+                    <label class="control-label">Opening Balance</label>
+                    <input type="number" class="form-control" @bind="model.OpeningBalance">
+                    <ValidationMessage For="@(() => model.OpeningBalance)" class="validation-message" />
+                </div>
+                <div class="col-md-2 form-group">
+                    <label class="control-label">Dr / Cr</label>
+                    <select class="form-select">
+                        <option value="Dr">Dr</option>
+                        <option value="Cr">Cr</option>
+                    </select>
+                    <ValidationMessage For="@(() => model.CrOrDr)" class="validation-message" />
+                </div>
+                <div class="col-md-6 form-group">
+
+                </div>
+            </div>
+            <h4>Other Details</h4>
+            <br/>
+            <div class="row">
+                <div class="col-md-4 form-group">
+                    <label class="control-label">Account Name</label>
+                    <input type="text" class="form-control" @bind="model.AccountName">
+                    <ValidationMessage For="@(() => model.AccountName)" class="validation-message" />
+                </div>
+                <div class="col-md-4 form-group">
+                    <label class="control-label">Account No</label>
+                    <input type="text" class="form-control" @bind="model.AccountNo">
+                    <ValidationMessage For="@(() => model.AccountNo)" class="validation-message" />
+                </div>
+                <div class="col-md-4 form-group">
+                    <label class="control-label">Address</label>
+                    <input type="text" class="form-control" @bind="model.Address">
+                    <ValidationMessage For="@(() => model.Address)" class="validation-message" />
+                </div>
+            </div>
+            <div class="row">
+
+                <div class="col-md-4 form-group">
+                    <label class="control-label">Country</label>
+                    <input type="text" class="form-control" @bind="model.Country">
+                    <ValidationMessage For="@(() => model.Country)" />
+                </div>
+                <div class="col-md-4 form-group">
+                    <label class="control-label">City</label>
+                    <input type="text" class="form-control" @bind="model.City">
+                    <ValidationMessage For="@(() => model.City)" />
+                </div>
+                <div class="col-md-4 form-group">
+                    <label class="control-label">Email</label>
+                    <input type="text" class="form-control" @bind="model.Email">
+                    <ValidationMessage For="@(() => model.Email)" />
+                </div>
+            </div>
+            <div class="row">
+                <div class="col-md-4 form-group">
+                    <label class="control-label">Phone</label>
+                    <input type="text" class="form-control" @bind="model.Phone">
+                    <ValidationMessage For="@(() => model.Phone)" />
+                </div>
+                <div class="col-md-4 form-group">
+                    <label class="control-label">Shipping Address</label>
+                    <input type="text" class="form-control" @bind="model.ShippingAddress">
+                    <ValidationMessage For="@(() => model.ShippingAddress)" />
+                </div>
+                <div class="col-md-4 form-group">
+                    <label class="control-label">Address</label>
+                    <input type="text" class="form-control" @bind="model.Address">
+                    <ValidationMessage For="@(() => model.Address)" />
+                </div>
+            </div>
+            <div class="row">
+                <div class="col-md-4 form-group">
+                    <label class="control-label">Tax No</label>
+                    <input type="text" class="form-control" @bind="model.TaxNo">
+                    <ValidationMessage For="@(() => model.TaxNo)" />
+                </div>
+                <div class="col-md-4 form-group">
+                    <label class="control-label">Credit Period</label>
+                    <input type="text" class="form-control" @bind="model.CreditPeriod">
+                    <ValidationMessage For="@(() => model.CreditPeriod)" />
+                </div>
+                <div class="col-md-6 form-group">
+                    <label class="control-label">Credit Limit</label>
+                    <input type="text" class="form-control" @bind="model.CreditLimit">
+                    <ValidationMessage For="@(() => model.CreditLimit)" />
+                </div>
+            </div>
+            <br/>
+            <div class="row">
+                <div class="col-md-6 form-group">
+                    <button type="submit" class="btn btn-secondary">Save</button>
+                </div>
+            </div>
+        </EditForm>
+    </div>
+</div>
+
+@code {
+    [Parameter]
+    public int id { get; set; }
+    private AccountLedger model = new AccountLedger();
+    private List<AccountGroupView> listAccountGroup = new();
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        try
+        {
+            if(id == 0)
+            {
+                listAccountGroup = await accountGroupService.GetAllAccountGroupAsync();
+                int strSerialNo = await accountLedgerService.GetSerialNo();
+                model.LedgerId = strSerialNo;
+                model.LedgerCode = strSerialNo.ToString();
+                model.AccountGroupId = 0;
+                model.LedgerId = 0;
+                model.LedgerName = string.Empty;
+                model.Phone = string.Empty;
+                model.Email = string.Empty;
+                model.Address = string.Empty;
+                model.Country = string.Empty;
+                model.City = string.Empty;
+                model.TaxNo = string.Empty;
+                model.ShippingAddress = string.Empty;
+                model.CreditLimit = 0;
+                model.CreditPeriod = 0;
+                model.OpeningBalance = 0;
+                model.ShippingAddress = string.Empty;
+                model.CrOrDr = "Dr";
+                model.IsDefault = false;
+                model.BankName = string.Empty;
+                model.BranchName = string.Empty;
+                model.BankIFSCCode = string.Empty;
+                model.AccountName = string.Empty;
+                model.AccountNo = string.Empty;
+                model.OpeningDate = DateTime.UtcNow;
+                StateHasChanged();
+            }
+            else
+            {
+                model = await accountLedgerService.GetAccountLedgerByIdAsync(id);
+                listAccountGroup = await accountGroupService.GetAllAccountGroupAsync();
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error loading data: {ex.Message}", Severity.Error);
+        }
+    }
+    private async Task Save()
+    {
+        try
+        {
+            if (model.LedgerId == 0)
+            {
+                int strSerialNo = await accountLedgerService.GetSerialNo();
+                model.LedgerId = strSerialNo;
+                model.LedgerCode = strSerialNo.ToString();
+                int value = await accountLedgerService.AddAccountLedgerAsync(model);
+                if (value > 0)
+                {
+                    Snackbar.Add("Account ledger created successfully", Severity.Success);
+                    NavigationManager.NavigateTo("/account-ledger");
+                }
+                else
+                {
+                    Snackbar.Add("Ledger code already exists.", Severity.Info);
+                }
+            }
+            else
+            {
+                bool isUpdated = await accountLedgerService.UpdateAccountLedgerAsync(model);
+                if (isUpdated == true)
+                {
+                    Snackbar.Add("Acount ledger updated successfully", Severity.Success);
+                    NavigationManager.NavigateTo("/account-ledger");
+                }
+                else
+                {
+                    Snackbar.Add("Ledger code already exists.", Severity.Info);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error saving account ledger: {ex.Message}", Severity.Success);
+        }
+    }
+}

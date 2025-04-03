@@ -1,0 +1,345 @@
+﻿@page "/product/add"
+@page "/product/{id:int}"
+@inject ProductService productService
+@inject TaxService taxService
+@inject CategoryService categoryService
+@inject QuickproPos.Utilities.BarcodeNumberService BarcodeNumberService
+@inject UnitService unitService
+@inject BrandService brandService
+@inject WarehouseService warehouseService
+@inject NavigationManager NavigationManager
+@inject MudBlazor.ISnackbar Snackbar
+@inject IJSRuntime JsRuntime
+
+<div class="container mt-4">
+    <!-- Page Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h4>Product | Add</h4>
+        <a class="btn btn-secondary" href="/product">
+            <i class="fas fa-arrow-left me-2"></i> Back
+        </a>
+    </div>
+
+    <!-- Form Card -->
+    <div class="card shadow-sm">
+        <div class="card-header bg-primary text-white">
+            <h5 class="mb-0">Product Details</h5>
+        </div>
+        <div class="card-body">
+            <EditForm Model="model" OnValidSubmit="Save">
+                <DataAnnotationsValidator />
+                <div class="row g-3">
+                    <!-- Product Type -->
+                    <div class="col-lg-3 col-md-4">
+                        <label>Product Type<span class="text-danger">*</span></label>
+                        <select @bind="model.ProductType" class="form-select">
+                            <option value="Product">Product</option>
+                            <option value="Service">Service</option>
+                            <option value="RawMaterial">Raw Material</option>
+                        </select>
+                        <ValidationMessage For="@(() => model.ProductType)" />
+                    </div>
+
+                    <!-- Product Name -->
+                    <div class="col-lg-6 col-md-8">
+                        <label>Product Name<span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" @bind="model.ProductName" placeholder="Enter product name">
+                        <ValidationMessage For="@(() => model.ProductName)" />
+                    </div>
+
+                    <!-- Barcode -->
+                    <div class="col-lg-3 col-md-4">
+                        <label>Item / Barcode<span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" @bind="model.ProductCode" placeholder="Enter barcode">
+                        <ValidationMessage For="@(() => model.ProductCode)" />
+                    </div>
+
+                    <!-- HSN Code -->
+                    <div class="col-lg-4 col-md-6">
+                        <label>HSN Code</label>
+                        <input type="text" class="form-control" @bind="model.HsnCode" placeholder="Enter HSN code">
+                        <ValidationMessage For="@(() => model.HsnCode)" />
+                    </div>
+
+                    <!-- Category -->
+                    <div class="col-lg-4 col-md-6">
+                        <label>Category<span class="text-danger">*</span></label>
+                        <select class="form-select" @bind="model.GroupId">
+                            <option value="0">Choose</option>
+                            @if (listCategory != null)
+                            {
+                                @foreach (var category in listCategory)
+                                {
+                                    <option value="@category.GroupId">@category.GroupName</option>
+                                }
+                            }
+                        </select>
+                        <ValidationMessage For="@(() => model.GroupId)" />
+                    </div>
+
+                    <!-- Brand -->
+                    <div class="col-lg-4 col-md-6">
+                        <label>Brand<span class="text-danger">*</span></label>
+                        <select class="form-select" @bind="model.BrandId">
+                            <option value="0">Choose</option>
+                            @if (listBrand != null)
+                            {
+                                @foreach (var brand in listBrand)
+                                {
+                                    <option value="@brand.BrandId">@brand.Name</option>
+                                }
+                            }
+                        </select>
+                        <ValidationMessage For="@(() => model.BrandId)" />
+                    </div>
+
+                    <!-- Unit -->
+                    <div class="col-lg-4 col-md-6">
+                        <label>Unit<span class="text-danger">*</span></label>
+                        <select class="form-select" @bind="model.UnitId">
+                            <option value="0">Choose</option>
+                            @if (listUnit != null)
+                            {
+                                @foreach (var unit in listUnit)
+                                {
+                                    <option value="@unit.UnitId">@unit.UnitName</option>
+                                }
+                            }
+                        </select>
+                        <ValidationMessage For="@(() => model.UnitId)" />
+                    </div>
+
+                    <!-- Warehouse -->
+                    <div class="col-lg-4 col-md-6">
+                        <label>Warehouse<span class="text-danger">*</span></label>
+                        <select class="form-select" @bind="model.WarehouseId">
+                            <option value="0">Choose</option>
+                            @if (listWarehouse != null)
+                            {
+                                @foreach (var warehouse in listWarehouse)
+                                {
+                                    <option value="@warehouse.WarehouseId">@warehouse.Name</option>
+                                }
+                            }
+                        </select>
+                        <ValidationMessage For="@(() => model.WarehouseId)" />
+                    </div>
+
+                    <!-- Tax -->
+                    <div class="col-lg-4 col-md-6">
+                        <label>Tax<span class="text-danger">*</span></label>
+                        <select class="form-select" @bind="model.TaxId">
+                            <option value="0">Choose</option>
+                            @if (listTax != null)
+                            {
+                                @foreach (var tax in listTax)
+                                {
+                                    <option value="@tax.TaxId">@tax.TaxName</option>
+                                }
+                            }
+                        </select>
+                        <ValidationMessage For="@(() => model.TaxId)" />
+                    </div>
+
+                    <!-- Rates -->
+                    <div class="col-lg-4 col-md-6">
+                        <label>Purchase Rate<span class="text-danger">*</span></label>
+                        <div class="d-flex align-items-start gap-2">
+                            <input type="text" class="form-control" @bind="model.PurchaseRate" placeholder="Enter purchase rate">
+                            <select class="form-select" @bind="model.Includingpurchasetax">
+                                <option value="Excluding">Excluding Tax</option>
+                                <option value="Including">Including Tax</option>
+                            </select>
+                        </div>
+                        <ValidationMessage For="@(() => model.PurchaseRate)" />
+                    </div>
+
+
+                    <div class="col-lg-4 col-md-6">
+                        <label>MRP<span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" @bind="model.Mrp" placeholder="Enter MRP">
+                        <ValidationMessage For="@(() => model.Mrp)" />
+                    </div>
+
+                    <div class="col-lg-4 col-md-6">
+                        <label>Sales Rate<span class="text-danger">*</span></label>
+                        <div class="d-flex align-items-start gap-2">
+                            <input type="text" class="form-control" @bind="model.SalesRate" placeholder="Enter sales rate">
+                            <select class="form-select" @bind="model.Includingsalestax">
+                                <option value="Excluding">Excluding Tax</option>
+                                <option value="Including">Including Tax</option>
+                            </select>
+                        </div>
+                        <ValidationMessage For="@(() => model.PurchaseRate)" />
+                    </div>
+
+                    <!-- Opening Stock -->
+                    <div class="col-lg-4 col-md-6">
+                        <label>Opening Qty</label>
+                        <input type="number" class="form-control" @bind="model.OpeningStock" placeholder="Enter opening quantity">
+                        <ValidationMessage For="@(() => model.OpeningStock)" />
+                    </div>
+
+                    <!-- Opening Date -->
+                    <div class="col-lg-4 col-md-6">
+                        <label>Opening Date</label>
+                        <InputDate class="form-control" @bind-Value="@model.ExiparyDate" />
+                        <ValidationMessage For="@(() => model.ExiparyDate)" />
+                    </div>
+
+                    <!-- Description -->
+                    <div class="col-lg-12">
+                        <label>Description</label>
+                        <textarea class="form-control" @bind="model.Narration" placeholder="Enter product description"></textarea>
+                    </div>
+
+                    <!-- Product Image -->
+                    <div class="col-lg-4">
+                        <label>Product Image</label>
+                        @if (string.IsNullOrEmpty(model.Image))
+                        {
+                            <img src="/img/noimage.png" height="60" width="60" class="img-thumbnail">
+                        }
+                        else
+                        {
+                            <img src="@model.Image" height="60" width="60" class="img-thumbnail">
+                        }
+                        <InputFile OnChange="OnFileChange" />
+                        <ValidationMessage For="@(() => model.Image)" />
+                    </div>
+                </div>
+
+                <!-- Buttons -->
+                <div class="d-flex justify-content-end mt-4">
+                    <a href="/product" class="btn btn-secondary me-3">Cancel</a>
+                    <button type="submit" class="btn btn-primary">Save</button>
+                </div>
+            </EditForm>
+        </div>
+    </div>
+</div>
+
+
+@code {
+    [Parameter]
+    public int id { get; set; }
+    private Product model = new Product();
+    List<ProductGroupView> listCategory;
+    List<Unit> listUnit;
+    List<Brand> listBrand;
+    List<Tax> listTax;
+    List<Warehouse> listWarehouse;
+    private string barcodeNumber;
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        try
+        {
+            if (id == 0)
+            {
+                listCategory = await categoryService.GetAllProductGroupsAsync();
+                listUnit = await unitService.GetAllUnitsAsync();
+                listBrand = await brandService.GetAllBrandsAsync();
+                listTax = await taxService.GetAllTaxsAsync();
+                listWarehouse = await warehouseService.GetAllWarehousesAsync();
+                model.GroupId = 0;
+                model.BrandId = 0;
+                model.TaxId = 0;
+                model.UnitId = 0;
+                barcodeNumber = BarcodeNumberService.GenerateBarcodeNumber();
+
+                model.ProductCode = barcodeNumber;
+                model.Barcode = barcodeNumber;
+                model.ProductName = string.Empty;
+                model.ProductType = "Product";
+                model.Includingpurchasetax = "Excluding";
+                model.Includingsalestax = "Excluding";
+                model.HsnCode = string.Empty;
+				model.PurchaseRate = 0;
+				model.SalesRate = 0;
+				model.Mrp = 0;
+				model.ApplicableOn = "Rate";
+				model.Narration = string.Empty;
+				model.QtyAlert = 0;
+				model.Image = string.Empty;
+				model.OpeningStock = 0;
+				model.ExiparyDate = DateTime.UtcNow;
+				model.WarehouseId = 1;
+				model.IsActive = true;
+				model.IsVariant = false;
+				model.IsBatch = true;
+				model.IsEcommerce = false;
+			}
+			else
+			{
+				model = await productService.GetProductByIdAsync(id);
+				listCategory = await categoryService.GetAllProductGroupsAsync();
+				listUnit = await unitService.GetAllUnitsAsync();
+				listBrand = await brandService.GetAllBrandsAsync();
+				listTax = await taxService.GetAllTaxsAsync();
+				listWarehouse = await warehouseService.GetAllWarehousesAsync();
+			}
+		}
+		catch (Exception ex)
+		{
+			Snackbar.Add($"Error loading data: {ex.Message}", Severity.Error);
+		}
+	}
+	private async Task Save()
+	{
+		try
+		{
+			if (model.ProductId == 0)
+			{
+				int value = await productService.AddProductAsync(model);
+				if (value > 0)
+				{
+					Snackbar.Add("Product created successfully", Severity.Success);
+					NavigationManager.NavigateTo("/product");
+				}
+				else
+				{
+					Snackbar.Add("Product code already exists.", Severity.Info);
+				}
+			}
+			else
+			{
+				bool isUpdated = await productService.UpdateProductAsync(model);
+				if (isUpdated == true)
+				{
+					Snackbar.Add("Product updated successfully", Severity.Success);
+					NavigationManager.NavigateTo("/product");
+				}
+				else
+				{
+					Snackbar.Add("Product code already exists.", Severity.Info);
+				}
+			}
+		}
+		catch (Exception ex)
+		{
+			Snackbar.Add($"Error saving Product: {ex.Message}", Severity.Error);
+		}
+	}
+	async Task OnFileChange(InputFileChangeEventArgs e)
+	{
+		var format = "image/png";
+		var resizedImage = await e.File.RequestImageFileAsync(format, 226, 226);
+		var buffer = new byte[resizedImage.Size];
+		await resizedImage.OpenReadStream().ReadAsync(buffer);
+		var imageData = $"data:{format};base64,{Convert.ToBase64String(buffer)}";
+		if (imageData == null)
+		{
+			model.Image = string.Empty;
+		}
+		else
+		{
+			model.Image = imageData;
+		}
+		StateHasChanged();
+	}
+}

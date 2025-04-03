@@ -1,0 +1,98 @@
+﻿@inherits LayoutComponentBase
+@inject UserService userService
+@inject NavigationManager NavigationManager
+<MudThemeProvider />
+<MudPopoverProvider />
+<MudDialogProvider />
+<MudSnackbarProvider />
+<div class="d-flex">
+    <!-- Sidebar -->
+    <nav class="sidebar bg-dark text-light vh-100">
+        <div class="p-3">
+            <div class="sidebar-header mb-4 d-flex align-items-center">
+                <img src="img/logo.png" alt="Logo" class="me-2" style="width: 180px;height:60px;">
+            </div>
+            <NavMenu />
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="content flex-grow-1 p-4 bg-light">
+        <header class="d-flex justify-content-between align-items-center mb-4">
+            <h4>Welcome, 
+                @if (currentUser !=null)
+                {
+                    @currentUser.Username
+                }
+            </h4>
+            <div class="d-flex align-items-center">
+                @* <span class="me-3">
+                    <div class="dropdown">
+                        <button class="btn btn-outline-info" type="button" id="notificationsMenu" data-bs-toggle="dropdown" aria-expanded="false">
+                            <i class="fas fa-bell"></i>
+                            <span class="badge bg-danger">3</span>
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="notificationsMenu">
+                            <li><a class="dropdown-item" href="/notifications">View All Notifications</a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item" href="#">Mark All as Read</a></li>
+                        </ul>
+                    </div>
+                </span> *@
+                <a href="/pos" class="btn btn-primary">
+                    <i class="fas fa-cash-register me-2"></i> POS
+                </a>
+                <div class="dropdown">
+                    <button class="btn btn-outline-light dropdown-toggle d-flex align-items-center" type="button" id="userMenu" data-bs-toggle="dropdown" aria-expanded="false">
+                        <i class="fas fa-user-circle me-2"></i>
+                        <span class="fw-bold">
+                            @if (currentUser != null)
+                            {
+                                @currentUser.Username
+                            }
+                        </span>
+                    </button>
+
+                    <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userMenu">
+                        <li><a class="dropdown-item" href="/user/profile/@currentUser?.UserId"><i class="fas fa-user"></i> Your Profile</a></li>
+                        <li><a class="dropdown-item" href="/user/change-password/@currentUser?.UserId"><i class="fas fa-lock"></i> Change Password</a></li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li><a class="dropdown-item text-danger" onclick="@Logout"><i class="fas fa-sign-out-alt"></i> Sign Out</a></li>
+                    </ul>
+                </div>
+            </div>
+
+        </header>
+        @Body
+    </div>
+</div>
+@code
+{
+    private UserMaster? currentUser;
+    protected async override Task OnInitializedAsync()
+    {
+        try
+        {
+            currentUser = await userService.GetCurrentUser(); // Fetch the current user
+
+            if (currentUser == null)
+            {
+                NavigationManager.NavigateTo("/login", forceLoad: true);
+            }
+            else
+            {
+                
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error during initialization: {ex.Message}");
+        }
+    }
+
+    private void Logout()
+    {
+        userService.Logout();
+        NavigationManager.NavigateTo("/login");
+    }
+}

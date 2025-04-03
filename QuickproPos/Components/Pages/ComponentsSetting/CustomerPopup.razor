@@ -1,0 +1,229 @@
+﻿@inject AccountLedgerService accountLedgerService
+@inject MudBlazor.ISnackbar Snackbar
+
+<div class="modal fade show d-block" style="background-color: rgba(0, 0, 0, 0.5);">
+    <div class="modal-dialog">
+        <EditForm Model="model" OnValidSubmit="Save">
+            <DataAnnotationsValidator />
+            <div class="modal-content">
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title">
+                        <i class="fa-solid fa-user-plus me-2"></i> Add New Customer
+                    </h5>
+                    <button type="button" class="btn-close" @onclick="CloseModal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row g-3">
+                        <!-- Customer Name -->
+                        <div class="col-lg-8">
+                            <div class="form-group">
+                                <label for="customerName">Customer Name</label>
+                                <input type="text" class="form-control" id="customerName" placeholder="Enter customer name" @bind="model.LedgerName">
+                                <ValidationMessage For="@(() => model.LedgerName)" />
+                            </div>
+                        </div>
+
+                        <!-- Ledger Code -->
+                        <div class="col-lg-4">
+                            <div class="form-group">
+                                <label for="ledgerCode">Code</label>
+                                <input type="text" class="form-control" id="ledgerCode" placeholder="Auto-generated" @bind="model.LedgerCode" readonly>
+                                <ValidationMessage For="@(() => model.LedgerCode)" />
+                            </div>
+                        </div>
+
+                        <!-- Address -->
+                        <div class="col-lg-8">
+                            <div class="form-group">
+                                <label for="address">Address</label>
+                                <input type="text" class="form-control" id="address" placeholder="Enter address" @bind="model.Address">
+                                <ValidationMessage For="@(() => model.Address)" />
+                            </div>
+                        </div>
+
+                        <!-- Tax Number -->
+                        <div class="col-lg-4">
+                            <div class="form-group">
+                                <label for="taxNo">Tax No</label>
+                                <input type="text" class="form-control" id="taxNo" placeholder="Enter tax number" @bind="model.TaxNo">
+                                <ValidationMessage For="@(() => model.TaxNo)" />
+                            </div>
+                        </div>
+
+                        <!-- Phone -->
+                        <div class="col-lg-4">
+                            <div class="form-group">
+                                <label for="phone">Phone</label>
+                                <input type="text" class="form-control" id="phone" placeholder="Enter phone number" @bind="model.Phone">
+                                <ValidationMessage For="@(() => model.Phone)" />
+                            </div>
+                        </div>
+
+                        <!-- Country -->
+                        <div class="col-lg-4">
+                            <div class="form-group">
+                                <label for="country">Country</label>
+                                <input type="text" class="form-control" id="country" placeholder="Enter country" @bind="model.Country">
+                                <ValidationMessage For="@(() => model.Country)" />
+                            </div>
+                        </div>
+
+                        <!-- City -->
+                        <div class="col-lg-4">
+                            <div class="form-group">
+                                <label for="city">City</label>
+                                <input type="text" class="form-control" id="city" placeholder="Enter city" @bind="model.City">
+                                <ValidationMessage For="@(() => model.City)" />
+                            </div>
+                        </div>
+
+                        <hr class="my-3" />
+
+                        <h6 class="text-secondary">Additional Fields</h6>
+
+                        <!-- Email -->
+                        <div class="col-lg-4">
+                            <div class="form-group">
+                                <label for="email">Email</label>
+                                <input type="email" class="form-control" id="email" placeholder="Enter email" @bind="model.Email">
+                                <ValidationMessage For="@(() => model.Email)" />
+                            </div>
+                        </div>
+
+                        <!-- Credit Period -->
+                        <div class="col-lg-4">
+                            <div class="form-group">
+                                <label for="creditPeriod">Credit Period</label>
+                                <input type="number" class="form-control" id="creditPeriod" placeholder="Enter credit period" @bind="model.CreditPeriod">
+                                <ValidationMessage For="@(() => model.CreditPeriod)" />
+                            </div>
+                        </div>
+
+                        <!-- Credit Limit -->
+                        <div class="col-lg-4">
+                            <div class="form-group">
+                                <label for="creditLimit">Credit Limit</label>
+                                <input type="number" class="form-control" id="creditLimit" placeholder="Enter credit limit" @bind="model.CreditLimit">
+                                <ValidationMessage For="@(() => model.CreditLimit)" />
+                            </div>
+                        </div>
+
+                        <!-- Opening Balance -->
+                        <div class="col-lg-4">
+                            <div class="form-group">
+                                <label for="openingBalance">Opening Balance</label>
+                                <input type="number" class="form-control" id="openingBalance" placeholder="Enter opening balance" @bind="model.OpeningBalance">
+                                <ValidationMessage For="@(() => model.OpeningBalance)" />
+                            </div>
+                        </div>
+
+                        <!-- Opening Date -->
+                        <div class="col-lg-4">
+                            <div class="form-group">
+                                <label for="openingDate">Opening Date</label>
+                                <InputDate class="form-control" id="openingDate" @bind-Value="model.OpeningDate" />
+                                <ValidationMessage For="@(() => model.OpeningDate)" />
+                            </div>
+                        </div>
+
+                        <!-- Debit or Credit -->
+                        <div class="col-lg-4">
+                            <div class="form-group">
+                                <label for="crOrDr">Type</label>
+                                <select id="crOrDr" class="form-select" @bind="model.CrOrDr">
+                                    <option value="Dr">Dr</option>
+                                    <option value="Cr">Cr</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="CloseModal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save</button>
+                </div>
+            </div>
+        </EditForm>
+    </div>
+</div>
+
+@code {
+	[Parameter] public EventCallback<int> OnButtonClick { get; set; }
+	private AccountLedger model = new AccountLedger();
+	protected override async Task OnInitializedAsync()
+	{
+		await LoadData();
+	}
+
+	private async Task LoadData()
+	{
+		try
+		{
+			int strSerialNo = await accountLedgerService.GetSerialNo();
+			model.LedgerId = strSerialNo;
+			model.LedgerCode = strSerialNo.ToString();
+			model.AccountGroupId = 26;
+			model.LedgerId = 0;
+			model.LedgerName = string.Empty;
+			model.Phone = string.Empty;
+			model.Email = string.Empty;
+			model.Address = string.Empty;
+			model.Country = string.Empty;
+			model.City = string.Empty;
+			model.TaxNo = string.Empty;
+			model.ShippingAddress = string.Empty;
+			model.CreditLimit = 0;
+			model.CreditPeriod = 0;
+			model.OpeningBalance = 0;
+			model.ShippingAddress = string.Empty;
+			model.CrOrDr = "Dr";
+			model.IsDefault = false;
+			model.BankName = string.Empty;
+			model.BranchName = string.Empty;
+			model.BankIFSCCode = string.Empty;
+			model.AccountName = string.Empty;
+			model.AccountNo = string.Empty;
+			model.OpeningDate = DateTime.UtcNow;
+			StateHasChanged();
+		}
+		catch (Exception ex)
+		{
+			Snackbar.Add($"Error loading data: {ex.Message}", Severity.Error);
+		}
+	}
+	private async Task Save()
+	{
+		try
+		{
+			if (model.LedgerId == 0)
+			{
+				int strSerialNo = await accountLedgerService.GetSerialNo();
+				model.LedgerId = strSerialNo;
+				model.LedgerCode = strSerialNo.ToString();
+				int value = await accountLedgerService.AddAccountLedgerAsync(model);
+				if (value > 0)
+				{
+					Snackbar.Add("Customer created successfully", Severity.Success);
+					await OnButtonClick.InvokeAsync(value);
+				}
+				else
+				{
+					Snackbar.Add("Ledger code already exists.", Severity.Info);
+				}
+			}
+			else
+			{
+
+			}
+		}
+		catch (Exception ex)
+		{
+			Snackbar.Add($"Error saving Customer: {ex.Message}", Severity.Success);
+		}
+	}
+	private async Task CloseModal()
+	{
+		await OnButtonClick.InvokeAsync(0);
+	}
+}

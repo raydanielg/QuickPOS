@@ -1,0 +1,72 @@
+﻿@inject CouponService couponService
+@inject MudBlazor.ISnackbar Snackbar
+
+<div class="modal fade show d-block" style="background-color: rgba(0, 0, 0, 0.5);">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title">
+                    <i class="fa-solid fa-tags me-2"></i> Coupon
+                </h5>
+                <button type="button" class="btn-close" @onclick="CloseModal" aria-label="Close"></button>
+            </div>
+
+            <div class="modal-body">
+                <div class="row g-3">
+                    <div class="col-lg-12">
+                        <div class="form-group">
+                            <label for="customerName">Coupon Code</label>
+                            <input type="text" class="form-control" id="customerName" placeholder="Enter coupon code" @bind="strCouponName">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" @onclick="CloseModal">Cancel</button>
+                <button type="button" @onclick="Search" class="btn btn-primary">Search</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter] public EventCallback<Coupon> OnButtonClick { get; set; }
+    string strCouponName = string.Empty;
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        try
+        {
+            strCouponName = string.Empty;
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error loading data: {ex.Message}", Severity.Error);
+        }
+    }
+    private async Task Search()
+    {
+        try
+        {
+            if(strCouponName !=string.Empty)
+            {
+                var coupon = await couponService.GetCouponByCode(strCouponName , DateTime.UtcNow);
+                await OnButtonClick.InvokeAsync(coupon);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error: {ex.Message}", Severity.Success);
+        }
+    }
+    private async Task CloseModal()
+    {
+        await OnButtonClick.InvokeAsync(null);
+    }
+}

@@ -1,0 +1,159 @@
+﻿@page "/sales/register"
+@inject UserService userService
+@inject SalesRegisterService salesregisterService
+@inject MudBlazor.ISnackbar Snackbar
+@inject IJSRuntime JsRuntime
+
+<div class="container mt-4">
+    <!-- Header Section -->
+    <div class="row align-items-center mb-3">
+        <div class="col">
+            <h4 class="text-primary fw-bold">Sales Register</h4>
+        </div>
+    </div>
+
+    <!-- Filter Section -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <div class="row g-3">
+                        <!-- From Date -->
+                        <div class="col-lg-2 col-sm-6 col-12">
+                            <div class="form-group">
+                                <label class="form-label fw-semibold">From Date</label>
+                                <InputDate class="form-control" @bind-Value="FromDate" />
+                            </div>
+                        </div>
+
+                        <!-- To Date -->
+                        <div class="col-lg-2 col-sm-6 col-12">
+                            <div class="form-group">
+                                <label class="form-label fw-semibold">To Date</label>
+                                <InputDate class="form-control" @bind-Value="ToDate" />
+                            </div>
+                        </div>
+
+                        <!-- Cashier Dropdown -->
+                        <div class="col-lg-4 col-sm-6 col-12">
+                            <div class="form-group">
+                                <label class="form-label fw-semibold">Cashier</label>
+                                <select class="form-control" @bind="intUserId">
+                                    <option value="0">All Users</option>
+                                    @if (listUsers != null)
+                                    {
+                                        @foreach (var item in listUsers)
+                                        {
+                                            <option value="@item.UserId">@item.Email</option>
+                                        }
+                                    }
+                                </select>
+                            </div>
+                        </div>
+
+                        <!-- Search Button -->
+                        <div class="col-lg-2 col-sm-6 col-12 align-self-end">
+                            <button class="btn btn-primary w-100" @onclick="Filtter">
+                                <i class="fas fa-search me-2"></i> Search
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Table Section -->
+                <div class="table-responsive mt-4">
+                    <table class="table table-bordered table-striped align-middle">
+                        <thead class="table-primary">
+                            <tr>
+                                <th scope="col">Cashier</th>
+                                <th scope="col">From Date</th>
+                                <th scope="col">To Date</th>
+                                <th scope="col">Status</th>
+                                <th scope="col">Cash In Hand</th>
+                                <th scope="col">Cash</th>
+                                <th scope="col">Card</th>
+                                <th scope="col">UPI</th>
+                                <th scope="col">Pay Later</th>
+                                <th scope="col">Total Sales</th>
+                                <th scope="col">Credit Applied Amount</th>
+                                <th scope="col">Sales Return Amount</th>
+                                <th scope="col">Closing Amount</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @if (listSalesRegister == null || !listSalesRegister.Any())
+                            {
+                                <tr>
+                                    <td colspan="13" class="text-center text-muted py-4">
+                                        <div>
+                                            <i class="fas fa-exclamation-circle fs-1"></i>
+                                            <h5 class="mt-2">No Results Found</h5>
+                                        </div>
+                                    </td>
+                                </tr>
+                            }
+                            else
+                            {
+                                @foreach (var item in listSalesRegister)
+                                {
+                                    <tr>
+                                        <td>@item.FullName</td>
+                                        <td>@item.OpeningTime</td>
+                                        <td>@item.ClosingTime</td>
+                                        <td>@item.Status</td>
+                                        <td>@item.OpeningCashAmount</td>
+                                        <td>@item.Cash</td>
+                                        <td>@item.Card</td>
+                                        <td>@item.UPI</td>
+                                        <td>@item.PayLater</td>
+                                        <td>@item.TotalSales</td>
+                                        <td>@item.CreditAppliedAmount</td>
+                                        <td>@item.SalesReturnAmount</td>
+                                        <td>@item.ClosingAmount</td>
+                                    </tr>
+                                }
+                            }
+                        </tbody>
+                        <tfoot class="table-light">
+                            @if (listSalesRegister != null && listSalesRegister.Any())
+                            {
+                                <tr>
+                                    <td colspan="4" class="fw-bold text-end">Total</td>
+                                    <td>@listSalesRegister.Sum(x => x.OpeningCashAmount)</td>
+                                    <td>@listSalesRegister.Sum(x => x.Cash)</td>
+                                    <td>@listSalesRegister.Sum(x => x.Card)</td>
+                                    <td>@listSalesRegister.Sum(x => x.UPI)</td>
+                                    <td>@listSalesRegister.Sum(x => x.PayLater)</td>
+                                    <td>@listSalesRegister.Sum(x => x.TotalSales)</td>
+                                    <td>@listSalesRegister.Sum(x => x.CreditAppliedAmount)</td>
+                                    <td>@listSalesRegister.Sum(x => x.SalesReturnAmount)</td>
+                                    <td>@listSalesRegister.Sum(x => x.ClosingAmount)</td>
+                                </tr>
+                            }
+                        </tfoot>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    List<UserMaster> listUsers;
+    List<SalesRegisterClosingBalanceView> listSalesRegister;
+    DateTime FromDate = DateTime.UtcNow;
+    DateTime ToDate = DateTime.UtcNow;
+    int intUserId = 0;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await Filtter();
+    }
+
+    private async Task Filtter()
+    {
+        listUsers = await userService.GetAllUserMastersAsync();
+        listSalesRegister = await salesregisterService.GetAll(intUserId, FromDate, ToDate);
+        StateHasChanged();
+    }
+}

@@ -1,0 +1,46 @@
+﻿@page "/"
+@inject UserService AuthService
+@inject NavigationManager NavigationManager
+@code {
+    private UserMaster? currentUser;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            currentUser = await AuthService.GetCurrentUser(); // Fetch the current user
+
+            if (currentUser != null)
+            {
+                if (currentUser.IsEmailVerified == true)
+                {
+                    //NavigationManager.NavigateTo("/login", forceLoad: true);
+                    NavigationManager.NavigateTo("/dashboard", forceLoad: true);
+                }
+                else
+                {
+                    NavigationManager.NavigateTo("/login", forceLoad: true);
+                }
+            }
+            else
+            {
+                NavigationManager.NavigateTo("/login", forceLoad: true);
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error during initialization: {ex.Message}");
+        }
+    }
+
+    private void Logout()
+    {
+        AuthService.Logout();
+        NavigationManager.NavigateTo("/login", forceLoad: true);
+    }
+
+    private void GoToLogin()
+    {
+        NavigationManager.NavigateTo("/login", forceLoad: true);
+    }
+}

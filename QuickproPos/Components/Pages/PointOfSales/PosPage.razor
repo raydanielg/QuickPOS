@@ -1,0 +1,999 @@
+﻿@page "/pos"
+@inject SalesRegisterService _register
+@inject BrandService brandService
+@inject SalesInvoiceService salesInvoiceService
+@inject CategoryService categoryService
+@inject InvoiceSettingService invoiceSettingService
+@inject UserService userService
+@inject CompanyService companyService
+@inject TaxService taxService
+@inject AccountLedgerService accountledgerService
+@inject WarehouseService warehouseService
+@inject UnitService unitService
+@inject ProductService productService
+@inject MudBlazor.ISnackbar Snackbar
+@inject IJSRuntime JSRuntime
+@inject NavigationManager NavigationManager
+@using QuickproPos.Components.Layout
+@layout PosLayout
+<div class="container-fluid custom-container">
+    <!-- Header Section -->
+    <div class="pos-header d-flex flex-column flex-md-row justify-content-between align-items-center">
+        <PosHeaderNav master="@master" WarehouseList="@listWarehouse" />
+    </div>
+
+    <!-- Main Section -->
+    <div class="row mt-3 main-section">
+        <div class="col-md-7 left-panel">
+            <div class="row">
+                <div class="col-md-12 items-section">
+                    <div class="row g-3">
+                        <!-- Customer Selection -->
+                        <div class="col-md-4">
+                            <div class="form-group">
+                                <div class="input-group">
+                                    <span class="input-group-text">
+                                        <i class="fa fa-user"></i>
+                                    </span>
+                                    <select class="form-select" aria-label="Select Customer" @bind="@master.LedgerId">
+                                        <option value="0">Choose Customer</option>
+                                        @if (listLedger != null)
+                                        {
+                                            foreach (var supplier in listLedger)
+                                            {
+                                                <option value="@supplier.LedgerId">@supplier.LedgerName</option>
+                                            }
+                                        }
+                                    </select>
+                                    <button type="button" class="btn btn-light add_new_customer" @onclick="ShowModal">
+                                        <i class="fa fa-plus-circle text-primary"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Product Search -->
+                        <div class="col-md-8">
+                            <div class="form-group">
+                                <div class="input-group">
+                                    <div class="d-flex align-items-center gap-2 autocomplete-container">
+                                        <!-- Autocomplete Input and List -->
+                                        <div class="autocomplete position-relative flex-grow-1">
+                                            @* Razor block to handle empty state variable *@
+                                            @{
+                                                var strEmpty = string.Empty;
+                                            }
+
+                                            <input @bind="@strBarcode"
+                                            class="form-control shadow-sm"
+                                            onclick="getfocus()"
+                                            @onchange="() => OnChange()"
+                                            @onkeyup="() => OnChange()"
+                                            @bind:event="oninput"
+                                            placeholder="Scan/Search product by name/barcode" style="width:540px;">
+
+                                            @if (listAutocomplete != null)
+                                            {
+                                                @if (!string.IsNullOrEmpty(strBarcode))
+                                                {
+                                                    <ul class="options list-group shadow-lg">
+                                                        @if (listAutocomplete.Any())
+                                                        {
+                                                            @foreach (var itemProduct in listAutocomplete)
+                                                            {
+                                                                <li id="focus"
+                                                                class="option list-group-item list-group-item-action d-flex justify-content-between align-items-center"
+                                                                @onclick="() => OnChangeBarcode(itemProduct.ProductName)">
+                                                                    <span class="option-text fw-bold">@itemProduct.ProductName</span>
+                                                                    <span class="badge bg-primary">@itemProduct.CurrentStock</span>
+                                                                </li>
+                                                            }
+                                                        }
+                                                        else
+                                                        {
+                                                            <li class="option list-group-item disabled text-center">
+                                                                <em>No results found</em>
+                                                            </li>
+                                                        }
+                                                    </ul>
+                                                }
+                                            }
+                                        </div>
+
+                                        <!-- Add Product Button -->
+                                        <button type="button" class="btn btn-light shadow-sm pos_add_quick_product" @onclick="ShowModalProduct">
+                                            <i class="fa fa-plus-circle text-primary"></i>
+                                        </button>
+                                    </div>
+
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    @* CartHere *@
+                    <!-- Cart Items Table -->
+                    <div class="cart-container" style="max-height: 510px; overflow-y: auto; border: 1px solid #dee2e6; border-radius: 8px;">
+
+                        <table class="table table-striped table-hover table-sm align-middle" style="margin-top: 10px;">
+                            <thead class="table-dark">
+                                <tr>
+                                    <th style="max-width: 280px;">Item</th>
+                                    <th style="max-width: 100px;" class="text-center">Qty</th>
+                                    <th style="max-width: 140px;" class="text-center">Rate</th>
+                                    <th style="max-width: 120px;" class="text-center">Discount(%)</th>
+                                    <th style="max-width: 120px;" class="text-end">Total</th>
+                                    <th class="text-center">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @if (productList.Count == 0)
+                                {
+                                    <tr>
+                                        <td colspan="6" class="text-center">
+                                            <img src="img/noimage.png" alt="No items" class="img-fluid rounded-circle" style="max-width: 80px;">
+                                            <p class="text-muted mt-2">No items in the cart</p>
+                                        </td>
+                                    </tr>
+                                }
+                                else
+                                {
+                                    @foreach (var item in productList)
+                                    {
+                                        <tr>
+                                            <td style="max-width: 280px;">
+                                                <div class="d-flex align-items-center">
+                                                    <span class="fw-bold me-auto">@item.ProductName</span>
+                                                </div>
+                                            </td>
+                                            <td class="text-center">
+                                                <div class="btn-group btn-group-sm">
+                                                    <button class="btn btn-outline-danger" @onclick="()=>Decrease(item.ProductId)">
+                                                        <i class="fas fa-minus"></i>
+                                                    </button>
+                                                    <input type="text" class="form-control text-center border-dark rounded" style="max-width: 100px;"
+                                                           @bind-value="item.Qty"
+                                                           @onkeyup="@(e => editItem(item.ProductId))"
+                                                           @onchange="@(e => editItem(item.ProductId))"
+                                                           @bind-value:event="oninput">
+                                                    <button class="btn btn-outline-success" @onclick="()=>Increase(item.ProductId)">
+                                                        <i class="fas fa-plus"></i>
+                                                    </button>
+                                                </div>
+                                            </td>
+                                            <td class="text-center">
+                                                <input type="number" class="form-control form-control-sm rounded" style="max-width: 140px;"
+                                                       @bind-value="item.SalesRate"
+                                                       @onkeyup="@(e => editItem(item.ProductId))"
+                                                       @onchange="@(e => editItem(item.ProductId))"
+                                                       @bind-value:event="oninput">
+                                            </td>
+                                            <td class="text-center">
+                                                <input type="number" class="form-control form-control-sm rounded" style="max-width: 120px;"
+                                                       @bind-value="item.Discount"
+                                                       @onkeyup="@(e => editItem(item.ProductId))"
+                                                       @onchange="@(e => editItem(item.ProductId))"
+                                                       @bind-value:event="oninput">
+                                            </td>
+                                            <td class="text-end fw-bold" style="max-width: 160px;">
+                                                @company?.CurrencySymbol @item.Amount
+                                            </td>
+                                            <td class="text-center">
+                                                <button class="btn btn-danger btn-sm rounded-circle" @onclick="()=>DeleteItem(item.ProductId)">
+                                                    <i class="fas fa-trash"></i>
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    }
+                                }
+                            </tbody>
+                        </table>
+
+                    </div>
+
+                </div>
+                <div class="container-fluid bg-light border rounded py-3">
+                    <div class="row text-center g-2">
+                        <!-- Quantity -->
+                        <div class="col-12 col-sm-6 col-md border-end">
+                            <h5 class="fw-bold text-dark mb-1">@productList?.Sum(c => c.Qty)</h5>
+                            <span class="text-secondary">Quantity</span>
+                        </div>
+
+                        <!-- Taxable Amount -->
+                        <div class="col-12 col-sm-6 col-md border-end">
+                            <h5 class="fw-bold text-success mb-1">@(master?.NetAmounts)</h5>
+                            <span class="text-secondary">Taxable Amount</span>
+                        </div>
+
+                        <!-- Tax Amount -->
+                        <div class="col-12 col-sm-6 col-md border-end">
+                            <h5 class="fw-bold text-warning mb-1">@(master?.TotalTax ?? 0)</h5>
+                            <span class="text-secondary">Tax Amount</span>
+                        </div>
+
+                        <!-- Additional Charges -->
+                        <div class="col-12 col-sm-6 col-md border-end">
+                            <h5 class="fw-bold text-info mb-1">@master.CouponAmount</h5>
+                            <button class="btn btn-outline-dark btn-sm mt-1" @onclick="ShowModalCoupon">
+                                <i class="fas fa-tag"></i> Apply Coupon
+                            </button>
+                        </div>
+
+                        <!-- Discount -->
+                        <div class="col-12 col-sm-6 col-md border-end">
+                            <h5 class="fw-bold text-danger mb-1">@master.BillDiscount</h5>
+                            <span class="text-secondary">Discount</span>
+                        </div>
+
+                        <!-- Flat Discount -->
+                        <div class="col-12 col-sm-6 col-md border-end">
+                            <div class="input-group">
+                                <span class="input-group-text bg-dark text-light">
+                                    <i class="fas fa-percent"></i>
+                                </span>
+                                <input type="number" class="form-control" @bind="master.DisPer" @onkeyup="CalculateTotal" @onclick="CalculateTotal" @bind:event="oninput" />
+                            </div>
+                            <span class="text-secondary d-block mt-1">Flat Discount</span>
+                        </div>
+
+                        <!-- Total Amount -->
+                        <div class="col-12 col-md">
+                            <h4 class="fw-bold text-primary mb-1">@master.GrandTotal</h4>
+                            <span class="text-secondary">Total Amount</span>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- Cart Section -->
+        <div class="col-md-5 right-panel">
+            <div class="card cart-card shadow-sm">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <!-- Category Dropdown -->
+                    <div class="customer-select w-100">
+                        <label for="categoryDropdown" class="visually-hidden">Select Category</label>
+                        <select id="categoryDropdown" class="form-select w-100" @bind="selectedCategoryId" @onclick="() => LoadProducts(selectedCategoryId)">
+                            <option value="0">All Categories</option>
+                            @if (listCategory != null)
+                            {
+                                foreach (var item in listCategory)
+                                {
+                                    <option value="@item.GroupId">@item.GroupName</option>
+                                }
+                            }
+                        </select>
+                    </div>
+
+                    <!-- Brand Dropdown -->
+                    <div class="warehouse-select w-100">
+                        <label for="brandDropdown" class="visually-hidden">Select Brand</label>
+                        <select id="brandDropdown" class="form-select w-100" @bind="@selectedBrandId">
+                            <option value="0">All Brands</option>
+                            @if (listBrand != null)
+                            {
+                                foreach (var brand in listBrand)
+                                {
+                                    <option value="@brand.BrandId">@brand.Name</option>
+                                }
+                            }
+                        </select>
+                    </div>
+
+                </div>
+
+
+
+                <div class="card-body p-3">
+                    <!-- Items Cards -->
+                    <div class="items-container">
+                        @if (listProduct != null)
+                        {
+                            @foreach (var product in listProduct)
+                            {
+                                <div class="item-card">
+                                    <a @onclick="()=>ChangeProduct(product.ProductName)" style="cursor:pointer;">
+                                        @if (string.IsNullOrEmpty(product.Image))
+                                        {
+                                            <img src="/img/noimage.png" class="item-image" />
+                                        }
+                                        else
+                                        {
+                                            <img src="@product.Image" class="item-image" />
+                                        }
+                                        <div class="card-body text-center">
+                                            <h5 class="item-title mt-2">@product.ProductName</h5>
+                                        </div>
+                                    </a>
+                                </div>
+                            }
+                        }
+                    </div>
+
+                </div>
+            </div>
+            <div class="payment-buttons-footer bg-white py-3 shadow-sm">
+                <div class="d-flex justify-content-center flex-wrap gap-2">
+                    @if (master.SalesMasterId > 0 && master.PaymentStatus == "Hold")
+                    {
+                        <!-- Your conditional content here -->
+                    }
+                    else
+                    {
+                        <button type="button" class="btn btn-outline-secondary" @onclick="()=>ShowModalCashPayment(strHoldBill)">
+                            <i class="fas fa-file-alt me-1"></i> Hold Bills
+                        </button>
+                    }
+                    <button type="button" class="btn btn-outline-secondary" @onclick="HoldBill">
+                        <i class="fas fa-clock me-1"></i> On Hold Bills
+                    </button>
+                    <button class="btn btn-outline-danger" @onclick="LoadData">
+                        <i class="fas fa-trash-alt me-1"></i> Clear Cart [F2]
+                    </button>
+                    <button class="btn btn-success" @onclick="()=>ShowModalCashPayment(strCash)">
+                        <i class="fas fa-money-bill-wave me-1"></i> Cash [F1]
+                    </button>
+                    <button class="btn btn-primary" @onclick="()=>ShowModalCashPayment(strCard)">
+                        <i class="fas fa-credit-card me-1"></i> Card [F2]
+                    </button>
+                    <button class="btn btn-warning" @onclick="()=>ShowModalCashPayment(strUPI)">
+                        <i class="fas fa-mobile-alt me-1"></i> UPI [F3]
+                    </button>
+                    <button class="btn btn-info" @onclick="RegisterDetails">
+                        <i class="fas fa-info-circle me-1"></i> Register Details
+                    </button>
+                    <button class="btn btn-secondary" @onclick="RecentTransaction">
+                        <i class="fas fa-history me-1"></i> Recent Transaction
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@if (IsModalVisible)
+{
+    <QuickproPos.Components.Pages.ComponentsSetting.CustomerPopup OnButtonClick="CustomerButtonClick" />
+}
+
+@if (IsModalVisibleProduct)
+{
+    <QuickproPos.Components.Pages.ComponentsSetting.ProductPopup OnButtonClick="ProductButtonClick" />
+}
+@if (IsModalVisibleCoupon)
+{
+    <QuickproPos.Components.Pages.ComponentsSetting.CouponPopUp OnButtonClick="CouponButtonClick" />
+}
+@if (IsModalVisibleCashinHand)
+{
+    <QuickproPos.Components.Pages.ComponentsSetting.CashinHandPopUp OnButtonClick="CashInHandButtonClick" />
+}
+@if (IsModalVisibleCashPayment)
+{
+    <QuickproPos.Components.Pages.ComponentsSetting.CashPaymentPage type="@type" master="@master" productList="@productList" deleteNo="@deleteNo" OnButtonClick="CashPaymentButtonClick" />
+}
+@if (IsModalVisibleHoldBill)
+{
+    <QuickproPos.Components.Pages.ComponentsSetting.HoldBillPopUp OnButtonClick="HoldBillButtonClick" />
+}
+@if (IsModalVisibleRecentTransaction)
+{
+    <QuickproPos.Components.Pages.ComponentsSetting.RecentTransactionPopUp OnButtonClick="RecentTransactionButtonClick" />
+}
+@if (IsModalVisibleSalesRegister)
+{
+    <QuickproPos.Components.Pages.ComponentsSetting.SalesRegisterPopUp />
+}
+@if (IsModalVisiblePrint)
+{
+    <QuickproPos.Components.Pages.ComponentsSetting.PrintThermalPrint id="master.SalesMasterId" OnButtonClick="PrintButtonClick" />
+}
+@code
+{
+    private int id { get; set; }
+    string strHoldBill = "Hold";
+    string strCash = "Cash";
+    string strCard = "Card";
+    string strUPI = "UPI";
+    string strCreditSales = "CreditSales";
+    private DateTime currentDateTime = DateTime.Now; // Initial time
+    private SalesMaster master = new SalesMaster();
+    List<Brand> listBrand;
+    List<ProductGroupView> listCategory;
+    List<AccountLedgerView> listLedger;
+    List<Warehouse> listWarehouse;
+    List<ProductView> listProduct;
+    List<ProductView> listProductAll;
+    List<ProductView> listProductAllCategory;
+    List<Tax> listTax;
+    ProductView product = new ProductView();
+    ProductView viewProduct = new ProductView();
+    int editedID = 0;
+    List<ProductView> productList = new List<ProductView>();
+    private int selectedBrandId = 0;
+    private int selectedCategoryId = 0; // Tracks the currently selected category
+                                        //HoldDeleteItem
+    List<DeleteItem> deleteNo = new List<DeleteItem>();
+    string type;
+    string strBarcode = string.Empty;
+    List<ProductView> listAutocomplete;
+    private CompanyView company;
+    int voucherTypeId = 12; // Sales Invoice Voucher Type
+    SalesRegister register = new();
+    private bool IsModalVisibleCashinHand = false;
+    private bool IsModalVisible = false;
+    private bool IsModalVisibleProduct = false;
+    private bool IsModalVisibleCoupon = false;
+    private bool IsModalVisiblePrint = false;
+    private bool IsModalVisibleCashPayment = false;
+    private bool IsModalVisibleHoldBill = false;
+    private bool IsModalVisibleRecentTransaction = false;
+    private bool IsModalVisibleSalesRegister = false;
+    public int min { get; set; } = 0;
+    public int max { get; set; } = 100000;
+    UserMaster? currentUser;
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+    private async Task LoadData()
+    {
+        try
+        {
+            currentUser = await userService.GetCurrentUser(); // Fetch the current user
+            master.UserId = currentUser.UserId;
+            master.UserName = currentUser.Username;
+            await ShowCashinhand();
+            company = await companyService.GetAllCompaniesByIdAsync(1);
+            listCategory = await categoryService.GetAllProductGroupsAsync();
+            listLedger = await accountledgerService.GetAllAccountLedgersByIdAsync(26);
+            listTax = await taxService.GetAllTaxsAsync();
+            listWarehouse = await warehouseService.GetAllWarehousesAsync();
+            listProduct = await productService.GetAllProductsAsync();
+            listProductAll = listProduct;
+            listProductAllCategory = listProduct;
+            listBrand = await brandService.GetAllBrandsAsync();
+            master.SalesMasterId = 0;
+            master.VoucherTypeId = voucherTypeId;
+            master.LedgerId = 0;
+            master.WarehouseId = company.WarehouseId;
+            master.Date = DateTime.UtcNow;
+            master.DueDate = DateTime.UtcNow;
+            viewProduct.TaxId = 1;
+            master.TaxId = 1;
+            master.Narration = string.Empty;
+            master.Reference = string.Empty;
+            master.CouponAmount = 0;
+            master.ReferenceReceipt = string.Empty;
+            master.NetAmounts = 0;
+            master.TotalTax = 0;
+            master.GrandTotal = 0;
+            master.IsPayment = false;
+            master.PaymentId = 1;
+            master.OrderMasterId = 0;
+            master.Channel = "POS";
+
+            productList.Clear();
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error loading data: {ex.Message}", Severity.Error);
+        }
+    }
+    //CashInHand
+    async Task ShowCashinhand()
+    {
+        if (currentUser != null)
+        {
+            register.UserId = currentUser.UserId;
+            register.OpeningCashAmount = 0;
+            register.ClosingCashAmount = 0;
+            register.OpeningTime = DateTime.UtcNow;
+            register.ReturnAmount = 0;
+            register.Notes = string.Empty;
+            register.Status = "Open";
+            var result = await _register.CheckNameId(register);
+            if (result == false)
+            {
+                IsModalVisibleCashinHand = true;
+            }
+            StateHasChanged();
+        }
+    }
+    private async void AddFirstRow()
+    {
+        var myItem = new ProductView()
+            {
+                Id = productList.Count() + 1,
+                Qty = 0,
+                ProductId = 0,
+                TaxId = 0,
+                UnitId = 0,
+                BatchId = 0,
+                Discount = 0,
+                TaxRate = 0,
+                GrossAmount = 0,
+                DiscountAmount = 0,
+                NetAmount = 0,
+                TaxAmount = 0,
+                TotalAmount = 0,
+                SalesDetailsId = 0
+            };
+        productList.Add(myItem);
+    }
+    //ShowCashInHand
+    private async Task ShowModalCashPayment(string strType)
+    {
+        if (strType == "Hold")
+        {
+            type = strHoldBill;
+        }
+        else if (strType == "CreditSales")
+        {
+            type = strCreditSales;
+        }
+        else if(strType == "Cash")
+        {
+            type = strCash;
+        }
+        else if(strCard == "Card")
+        {
+            type = strCard;
+        }
+        else if(strUPI == "UPI")
+        {
+            type = strUPI;
+        }
+        else
+        {
+            type = string.Empty;
+        }
+        if (!productList.Any())
+        {
+            Snackbar.Add("Add at least 1 product", Severity.Error);
+            return;
+        }
+
+        // Check for zero quantity in any product
+        foreach (var proItem in productList)
+        {
+            if (proItem.Qty == 0)
+            {
+                Snackbar.Add("Transactions cannot be created with Zero Quantity", Severity.Error);
+                return;
+            }
+        }
+
+        // Validate master fields
+        if (master.LedgerId == 0)
+        {
+            Snackbar.Add("Select a valid customer.", Severity.Error);
+            return;
+        }
+        if (master.GrandTotal == 0)
+        {
+            Snackbar.Add("Grand Total cannot be zero.", Severity.Error);
+            return;
+        }
+
+        if (master.WarehouseId == 0)
+        {
+            Snackbar.Add("Choose a warehouse.", Severity.Error);
+            return;
+        }
+        else
+        {
+            if(master.SalesMasterId == 0)
+            {
+                master.TotalAmount = master.TotalAmount;
+                master.TaxRate = 0;
+                master.PayAmount = 0;
+
+                master.PreviousDue = master.GrandTotal;
+                master.BalanceDue = master.GrandTotal;
+                master.FinancialYearId = company.FinancialYearId;
+                master.VoucherTypeId = master.VoucherTypeId;
+                if (master.IsPayment == true)
+                {
+                    master.IsPayment = true;
+                }
+                else
+                {
+                    master.IsPayment = false;
+                    master.CashBankId = 0;
+                    master.ReferenceReceipt = string.Empty;
+                }
+                IsModalVisibleCashPayment = true;
+            }
+            else
+            {
+                IsModalVisibleCashPayment = true;
+            }
+        }
+    }
+    private async Task ChangeProduct(string strProductName)
+    {
+        product = listProduct.FirstOrDefault(x => x.ProductName == strProductName);
+        listProductAll = listProduct.Where(u => u.ProductName.ToLower().Contains(strProductName.ToLower())).Take(24).ToList();
+        if (product != null)
+        {
+            if (product.ProductId == 0 || product.UnitId == 0)
+            {
+                //ShowNotification(new NotificationMessage { Severity = NotificationSeverity.Error, Detail = localizer["Invalid Product or Unit"], Duration = 3000 });
+                return;
+            }
+
+            if (product.CurrentStock <= 0)
+            {
+                string strStatus = "Warn";
+                if (strStatus == "Warn" && !await ConfirmAsync("Negative Stock qty exists,Do you want to Continue?"))
+                {
+                    return;
+                }
+            }
+
+            UpdateTodoList(product);
+            CalculateTotal();
+            strBarcode = string.Empty;
+            listProductAll = null;
+            StateHasChanged();
+        }
+    }
+    private void UpdateTodoList(ProductView product)
+    {
+        var added = productList.FirstOrDefault(p => p.ProductId == product.ProductId);
+        if (added != null)
+        {
+            added.Qty += 1;
+            added.CalculateRowSalesAmounts(company);
+        }
+        else
+        {
+            product.Id = productList.Count + 1;
+            product.Qty = 1;
+            product.CalculateRowSalesAmounts(company);
+            productList.Add(product);
+        }
+        JSRuntime.InvokeVoidAsync("UpdateTodoList", "/sounds/success.mp3");
+        CalculateTotal();
+        StateHasChanged();
+    }
+    void editItem(int id)
+    {
+        var myTodo = productList.FirstOrDefault(x => x.ProductId == id);
+
+        if (myTodo != null)
+        {
+            myTodo.CalculateRowSalesAmounts(company);
+            master.CalculateSales(productList, company);
+        }
+
+        CalculateTotal();
+        StateHasChanged();
+    }
+    private async void Increase(int id)
+    {
+        var myTodo = productList.FirstOrDefault(x => x.ProductId == id);
+        if (myTodo != null)
+        {
+            if (myTodo.Qty < max)
+            {
+                myTodo.Qty++;
+
+
+                myTodo.Qty = myTodo.Qty;
+                myTodo.CalculateRowSalesAmounts(company);
+                master.CalculateSales(productList, company);
+                StateHasChanged();
+            }
+        }
+    }
+    private async void Decrease(int id)
+    {
+        var myTodo = productList.FirstOrDefault(x => x.ProductId == id);
+        if (myTodo != null)
+        {
+            if (myTodo.Qty < max)
+            {
+                myTodo.Qty--;
+                myTodo.Qty = myTodo.Qty;
+                myTodo.CalculateRowSalesAmounts(company);
+                master.CalculateSales(productList, company);
+                StateHasChanged();
+            }
+        }
+    }
+    private async Task DeleteItem(int id)
+    {
+        var myTodo = productList.FirstOrDefault(x => x.ProductId == id);
+        if (myTodo.SalesDetailsId == 0)
+        {
+            productList.Remove(myTodo);
+        }
+        else
+        {
+            //HoldId
+            productList.Remove(myTodo);
+            var myHoldId = new DeleteItem
+                {
+                    SalesDetailsId = myTodo.SalesDetailsId,
+                };
+            deleteNo.Add(myHoldId);
+        }
+        product = new ProductView();
+        CalculateTotal();
+    }
+    void CalculateTotal()
+    {
+        if (master.DisPer <= 0)
+        {
+            master.DisPer = 0;
+        }
+        foreach (var item in productList)
+        {
+
+            item.FlatDiscount = master.DisPer;
+            item.CalculateRowSalesAmounts(company);
+        }
+        master.CalculateSales(productList, company);
+    }
+    private async Task ShowModal()
+    {
+        IsModalVisible = true;
+    }
+    private async Task HoldBill()
+    {
+        IsModalVisibleHoldBill = true;
+    }
+    private async Task RecentTransaction()
+    {
+        IsModalVisibleRecentTransaction = true;
+    }
+    private async Task RegisterDetails()
+    {
+        IsModalVisibleSalesRegister = true;
+    }
+    private async Task LoadProducts(int categoryId)
+    {
+        selectedCategoryId = categoryId; // Update the selected category ID
+
+        if (categoryId == 0)
+        {
+            // Load all products if "All Categories" is selected
+            listProduct = await productService.GetAllProductsAsync();
+        }
+        else
+        {
+            // Filter products by the selected category
+            listProduct = listProductAllCategory.Where(p => p.GroupId == categoryId).ToList();
+        }
+
+        // Trigger a UI refresh to reflect changes
+        StateHasChanged();
+    }
+    private async Task loadProducts(int categoryId)
+    {
+        if (categoryId == 0)
+        {
+            listProduct = await productService.GetAllProductsAsync();
+        }
+        else
+        {
+            listProduct = listProduct.Where(p => p.GroupId == categoryId).ToList();
+        }
+    }
+    private async void Search(ChangeEventArgs e)
+    {
+        // Get the search term from input
+        string strsearch = e.Value?.ToString() ?? string.Empty;
+
+        if (string.IsNullOrWhiteSpace(strsearch))
+        {
+            // If the search field is empty, load all products
+            listProduct = await productService.GetAllProductsAsync();
+        }
+        else
+        {
+            // Perform case-insensitive partial match search
+            listProduct = listProduct
+                .Where(p => p.ProductName != null &&
+                            p.ProductName.IndexOf(strsearch, StringComparison.OrdinalIgnoreCase) >= 0)
+                .ToList();
+        }
+
+        // Trigger a UI refresh
+        StateHasChanged();
+    }
+    private async void CustomerButtonClick(int intId)
+    {
+        IsModalVisible = false;
+        if (intId > 0)
+        {
+            listLedger = await accountledgerService.GetAllAccountLedgersByIdAsync(26);
+            master.LedgerId = intId;
+        }
+        StateHasChanged();
+    }
+    private async void CashInHandButtonClick(int intId)
+    {
+        IsModalVisibleCashinHand = false;
+        StateHasChanged();
+    }
+    private async void ProductButtonClick(int intId)
+    {
+        IsModalVisibleProduct = false;
+        if (intId > 0)
+        {
+            listProduct = await productService.GetAllProductsAsync();
+        }
+        StateHasChanged();
+    }
+    private async void HoldBillButtonClick(int intId)
+    {
+        IsModalVisibleHoldBill = false;
+        if (intId > 0)
+        {
+            master = await salesInvoiceService.GetByIdAsync(intId);
+            listLedger = await accountledgerService.GetAllAccountLedgersByIdAsync(26);
+            listTax = await taxService.GetAllTaxsAsync();
+            listWarehouse = await warehouseService.GetAllWarehousesAsync();
+            productList = await salesInvoiceService.GetAllBySalesMasterDetails(intId);
+            listProduct = await productService.GetAllProductsAsync();
+        }
+        StateHasChanged();
+    }
+    private async void RecentTransactionButtonClick(int intId)
+    {
+        IsModalVisibleRecentTransaction = false;
+        if (intId > 0)
+        {
+            master = await salesInvoiceService.GetByIdAsync(intId);
+            listLedger = await accountledgerService.GetAllAccountLedgersByIdAsync(26);
+            listTax = await taxService.GetAllTaxsAsync();
+            listWarehouse = await warehouseService.GetAllWarehousesAsync();
+            productList = await salesInvoiceService.GetAllBySalesMasterDetails(intId);
+            listProduct = await productService.GetAllProductsAsync();
+        }
+        StateHasChanged();
+    }
+    private async void PrintButtonClick(int intId)
+    {
+        IsModalVisiblePrint = false;
+        StateHasChanged();
+    }
+    private async void CouponButtonClick(Coupon coupon)
+    {
+        IsModalVisibleCoupon = false;
+        if (coupon !=null)
+        {
+            master.CouponAmount = coupon.Amount;
+            master.CalculateSales(productList, company);
+        }
+        else
+        {
+            master.CouponAmount = 0;
+        }
+        StateHasChanged();
+    }
+    private async void CashPaymentButtonClick(int intId)
+    {
+        IsModalVisibleCashPayment = false;
+        if (intId == 0)
+        {
+
+        }
+        else
+        {
+            IsModalVisiblePrint = true;
+            if (intId > 0)
+            {
+                master.SalesMasterId = intId;
+            }
+            await Task.Delay(2000);
+            await LoadData();
+        }
+        StateHasChanged();
+    }
+    //ShowProduct
+    private async Task ShowModalProduct()
+    {
+        IsModalVisibleProduct = true;
+    }
+    //ShowCoupon
+    private async Task ShowModalCoupon()
+    {
+        IsModalVisibleCoupon = true;
+    }
+    //ShowCashInHand
+    private async Task ShowModalCashInHand()
+    {
+        IsModalVisibleCashinHand = true;
+    }
+
+    private async Task OnChangeBarcode(string strProduct)
+    {
+        var strStatus = "Warn";
+        product = listProduct.FirstOrDefault(x => x.ProductName == strProduct);
+        listAutocomplete = listProduct.Where(u => u.ProductName.ToLower().Contains(strProduct.ToLower())).Take(16).ToList();
+        if (product != null)
+        {
+            if (product.ProductId == 0 || product.UnitId == 0)
+            {
+                //ShowNotification(new NotificationMessage { Severity = NotificationSeverity.Error, Detail = "Invalid Product or Unit.", Duration = 3000 });
+                return;
+            }
+
+            if (product.CurrentStock <= 0)
+            {
+                if (strStatus == "Reject")
+                {
+                    //ShowNotification(new NotificationMessage { Severity = NotificationSeverity.Error, Detail = "Cannot continue due to negative stock qty.", Duration = 3000 });
+                    return;
+                }
+                if (strStatus == "Warn" && !await ConfirmAsync("Negative Stock qty exists,Do you want to Continue?"))
+                {
+                    return;
+                }
+            }
+
+            UpdateTodoList(product);
+            CalculateTotal();
+            strBarcode = string.Empty;
+            listAutocomplete = null;
+            StateHasChanged();
+        }
+    }
+
+    private async Task OnChange()
+    {
+        var strStatus = "Warn";
+        product = listProduct.FirstOrDefault(x => x.Barcode == strBarcode);
+        listAutocomplete = listProduct.Where(u => u.Barcode.ToLower().Contains(strBarcode.ToLower())).Take(16).ToList();
+        if (product == null)
+        {
+            listProduct.FirstOrDefault(x => x.ProductName == strBarcode);
+            var myTodoss = listProduct.FirstOrDefault(x => x.ProductName == strBarcode);
+            listAutocomplete = listProduct.Where(u => u.ProductName.ToLower().Contains(strBarcode.ToLower())).Take(16).ToList();
+            product = myTodoss;
+        }
+        if (product != null)
+        {
+            if (product.ProductId == 0 || product.UnitId == 0)
+            {
+                //ShowNotification(new NotificationMessage { Severity = NotificationSeverity.Error, Detail = "Invalid Product or Unit.", Duration = 3000 });
+                return;
+            }
+
+            if (product.CurrentStock <= 0)
+            {
+                if (strStatus == "Reject")
+                {
+                    //ShowNotification(new NotificationMessage { Severity = NotificationSeverity.Error, Detail = "Cannot continue due to negative stock qty.", Duration = 3000 });
+                    return;
+                }
+                if (strStatus == "Warn" && !await ConfirmAsync("Negative Stock qty exists,Do you want to Continue?"))
+                {
+                    return;
+                }
+            }
+
+            UpdateTodoList(product);
+            CalculateTotal();
+            strBarcode = string.Empty;
+            listAutocomplete = null;
+            StateHasChanged();
+        }
+    }
+    private async Task<bool> ConfirmAsync(string message)
+    {
+        return await JSRuntime.InvokeAsync<bool>("confirm", message);
+    }
+    private void Logout()
+    {
+        userService.Logout();
+        NavigationManager.NavigateTo("/login");
+    }
+}

@@ -1,0 +1,121 @@
+﻿@inject SalesInvoiceService salesinvoiceService
+@inject MudBlazor.ISnackbar Snackbar
+@inject IJSRuntime JsRuntime
+
+<div class="modal fade show d-block" style="background-color: rgba(0, 0, 0, 0.5);">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title">
+                    <i class="fa-solid fa-money-bill-transfer me-2"></i> Recent Transactions
+                </h5>
+
+                <button type="button" class="btn-close" @onclick="CloseModal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row g-3">
+                    <MudTable Items="listSalesInvoice" Dense="dense" Hover="hover">
+                        <HeaderContent>
+                            <MudTh>DATE</MudTh>
+                            <MudTh>INVOICE NO</MudTh>
+                            <MudTh>CUSTOMER NAME</MudTh>
+                            <MudTh>AMOUNT</MudTh>
+                            <MudTh>BALANCE DUE</MudTh>
+                            <MudTh>STATUS</MudTh>
+                            <MudTh></MudTh>
+                        </HeaderContent>
+                        <RowTemplate>
+                            <MudTd DataLabel="Date">@context.Date</MudTd>
+                            <MudTd DataLabel="VoucherNo">@context.VoucherNo</MudTd>
+                            <MudTd DataLabel="LedgerName">@context.LedgerName</MudTd>
+                            <MudTd DataLabel="GrandTotal">@context.GrandTotal</MudTd>
+                            <MudTd DataLabel="BalanceDue">@context.BalanceDue</MudTd>
+                            <MudTd DataLabel="Status">@context.Status</MudTd>
+                            <MudTd DataLabel="">
+                                <!-- Dropdown Actions -->
+                                <button class="btn btn-sm btn-light dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
+                                    <i class="fas fa-bars me-1"></i>
+                                </button>
+                                <div class="dropdown-menu">
+                                    <a class="dropdown-item" @onclick="()=>Edit(context.SalesMasterId)">
+                                        <i class="fas fa-edit"></i> Edit
+                                    </a>
+                                    <a class="dropdown-item text-danger" @onclick="() => Delete(context)">
+                                        <i class="fas fa-trash"></i> Delete
+                                    </a>
+                                </div>
+                            </MudTd>
+                        </RowTemplate>
+                        <PagerContent>
+                            <MudTablePager />
+                        </PagerContent>
+                    </MudTable>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+        [Parameter] public EventCallback<int> OnButtonClick { get; set; }
+    private bool dense = true;
+    private bool hover = true;
+    private List<SalesMasterView> listSalesInvoice = new();
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        try
+        {
+            listSalesInvoice = await salesinvoiceService.GetRecentTransaction();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error loading data: {ex.Message}", Severity.Error);
+        }
+    }
+    private async Task Edit(int id)
+    {
+        try
+        {
+            await OnButtonClick.InvokeAsync(id);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"error: {ex.Message}", Severity.Error);
+        }
+    }
+    private async Task Delete(SalesMasterView view)
+    {
+        try
+        {
+            // Show a confirmation dialog
+            bool confirmed = await JsRuntime.InvokeAsync<bool>("confirm", "Are you sure you want to delete this invoice?");
+            if (!confirmed) return;
+
+            // Attempt to delete the sales
+            bool isDeleted = await salesinvoiceService.DeleteSalesInvoiceAsync(view);
+
+            if (isDeleted)
+            {
+                Snackbar.Add("Hold bill deleted successfully.", Severity.Success);
+                await LoadData();
+            }
+            else
+            {
+                Snackbar.Add(" This invoice cannot be deleted as it is being used.", Severity.Warning);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"An error occurred while deleting the invoice: {ex.Message}", Severity.Error);
+        }
+    }
+    private async Task CloseModal()
+    {
+        await OnButtonClick.InvokeAsync(0);
+    }
+}

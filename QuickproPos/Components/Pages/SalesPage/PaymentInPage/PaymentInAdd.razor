@@ -1,0 +1,363 @@
+﻿@page "/payment-in/add"
+@page "/payment-in/{id:int}"
+@inject PaymentInService paymentinService
+@inject CompanyService companyService
+@inject SalesInvoiceService salesInvoiceService
+@inject InvoiceSettingService invoiceSettingService
+@inject AccountLedgerService accountledgerService
+@inject MudBlazor.ISnackbar Snackbar
+@inject IJSRuntime JsRuntime
+@inject NavigationManager NavigationManager
+
+<div class="container mt-4">
+    <div class="card">
+        <div class="card-header bg-primary text-white d-flex align-items-center justify-content-between">
+            <h5 class="mb-0">Payment In</h5>
+            <a href="/payment-in" class="btn btn-light btn-sm">
+                <i class="bi bi-arrow-left"></i> Back
+            </a>
+        </div>
+        <div class="card-body">
+            <!-- Payment Details Section -->
+            <div class="row mb-4">
+                <div class="col-md-4">
+                    <label class="form-label">Receipt No</label>
+                    <input type="text" class="form-control" @bind="master.VoucherNo" readonly />
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Customer <span class="text-danger">*</span></label>
+                    <select class="form-select" @bind="master.LedgerId" @onclick="()=> ChangeCustomer(master.LedgerId)">
+                        <option value="0">Choose Customer</option>
+                        @if (listLedger != null)
+                        {
+                            @foreach (var supplier in listLedger)
+                            {
+                                <option value="@supplier.LedgerId">@supplier.LedgerName</option>
+                            }
+                        }
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Recepit From <span class="text-danger">*</span></label>
+                    <select class="form-select" @bind="intCashBankid">
+                        <option value="0">Choose Cash / Bank</option>
+                        @if (listCashOrBank != null)
+                        {
+                            @foreach (var cashorbank in listCashOrBank)
+                            {
+                                <option value="@cashorbank.LedgerId">@cashorbank.LedgerName</option>
+                            }
+                        }
+                    </select>
+                </div>
+            </div>
+            <div class="row mb-4">
+                <div class="col-md-4">
+                    <label class="form-label">Date</label>
+                    <div class="input-group">
+                        <span class="input-group-text"><i class="bi bi-calendar3"></i></span>
+                        <InputDate class="form-control" @bind-Value="master.Date" />
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Amount</label>
+                    <input type="number" class="form-control" @bind="master.Amount" readonly />
+                    @if (master.Amount == 0)
+                    {
+                        <small class="text-danger">Already paid</small>
+                    }
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Notes</label>
+                    <input type="text" class="form-control" @bind="master.Narration" />
+                </div>
+            </div>
+
+            <hr />
+            <h6>Receipt Allocations</h6>
+            <div class="table-responsive mb-4">
+                <table class="table table-bordered table-hover">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Bill No</th>
+                            <th>Date</th>
+                            <th>Amount</th>
+                            <th>Left to Allocate</th>
+                            <th>This Allocation</th>
+                            <th class="text-center">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @if (TodoList != null)
+                        {
+                            @foreach (var td in TodoList)
+                            {
+                                <tr>
+                                    <td>@td.VoucherNo</td>
+                                    <td>@td.Date</td>
+                                    <td>@td.GrandTotal</td>
+                                    <td>@td.BalanceDue</td>
+                                    <td>
+                                        <input type="number" class="form-control" style="width: 100px"
+                                        @bind-value="td.ReceiveAmount" @bind-value:event="oninput"
+                                        @onkeyup="@(e => editItem(td.SalesMasterId))" />
+                                    </td>
+                                    <td class="text-center">
+                                        <button class="btn btn-danger btn-sm" @onclick="@(e => Delete(td.SalesMasterId))">
+                                            <i class="fas fa-trash-alt"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                            }
+                        }
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="d-flex justify-content-between">
+                <a href="/payment-out" class="btn btn-secondary">
+                    <i class="bi bi-x-circle"></i> Cancel
+                </a>
+                @if (master.Amount > 0)
+                {
+                    <button type="button" class="btn btn-primary" @onclick="@Save" disabled="@(isProcessing)">
+                        @if (isProcessing)
+                        {
+                            <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true">Processing</span>
+                        }
+                        else
+                        {
+                            <i class="fas fa-save"></i> <label>Save</label>
+                        }
+                    </button>
+                }
+            </div>
+        </div>
+    </div>
+</div>
+@code {
+    [Parameter]
+    public int id { get; set; }
+    SalesMaster sales = new SalesMaster();
+    ReceiptMaster master = new ReceiptMaster();
+    SalesMasterView viewMaster = new SalesMasterView();
+    List<AccountLedgerView> listLedger;
+    List<AccountLedgerView> listCashOrBank;
+    List<SalesMasterView> TodoList;
+    int voucherTypeId = 3; // Receive Voucher Type
+    int editedID = 0;
+    string strReadonly = "ReadOnly";
+    CompanyView company = new CompanyView();
+    InvoiceSetting invoiceSetting;
+    int intCashBankid = 0;
+    bool isProcessing;
+    protected override async Task OnInitializedAsync()
+    {
+        //CheckPriviliagee
+        await LoadData();
+    }
+    private async Task LoadData()
+    {
+        company = await companyService.GetAllCompaniesByIdAsync(1);
+        listLedger = await accountledgerService.GetAllAccountLedgersByIdAsync(26);
+        listCashOrBank = await accountledgerService.CashOrBankAsyn();
+        invoiceSetting = await invoiceSettingService.GetInvoiceSettingByIdAsync(voucherTypeId);
+        if (id == 0)
+        {
+            FetchSerialNo();
+            master.LedgerId = 0;
+            intCashBankid = 0;
+            master.Date = DateTime.UtcNow;
+            master.Narration = string.Empty;
+            master.Type = "CustomerPayment";
+            strReadonly = string.Empty;
+            StateHasChanged();
+        }
+        else
+        {
+            sales = await salesInvoiceService.GetByIdAsync(id);
+            master.LedgerId = sales.LedgerId;
+            FetchSerialNo();
+            intCashBankid = 0;
+            master.Date = DateTime.UtcNow;
+            master.Narration = string.Empty;
+            TodoList = await salesInvoiceService.PaymentInAllocationsAsync(sales.SalesMasterId);
+            master.Amount = TodoList.Sum(item => item.ReceiveAmount);
+            master.Type = "CustomerPayment";
+            strReadonly = "ReadOnly";
+            StateHasChanged();
+        }
+    }
+    private async void FetchSerialNo()
+    {
+        //GetSerialNo
+        string serial = await paymentinService.GetSerialNo();
+        master.VoucherNo = invoiceSetting.Prefix + serial + invoiceSetting.Suffix;
+        master.SerialNo = serial;
+        StateHasChanged();
+    }
+    private async void Save()
+    {
+        try
+        {
+            isProcessing = true;
+            if (master.LedgerId == 0)
+            {
+                Snackbar.Add("Select a customer.", Severity.Error);
+            }
+            else if (intCashBankid == 0)
+            {
+                Snackbar.Add("Select a cash / bank.", Severity.Error);
+            }
+            else if (master.VoucherNo == string.Empty)
+            {
+                Snackbar.Add("Type voucher no.", Severity.Error);
+            }
+            else
+            {
+                if (CheckValidation())
+                {
+                    FetchSerialNo();
+                    master.VoucherTypeId = voucherTypeId;
+                    master.UserId = string.Empty;
+                    master.FinancialYearId = company.FinancialYearId;
+                    master.SalesMasterId = sales.SalesMasterId;
+                    master.AddedDate = DateTime.UtcNow;
+                    if (TodoList != null)
+                    {
+                        foreach (var item in TodoList)
+                        {
+                            ReceiptDetails details = new ReceiptDetails();
+                            if (item.ReceiveAmount > 0)
+                            {
+                                details.LedgerId = intCashBankid;
+                                details.SalesMasterId = item.SalesMasterId;
+                                details.TotalAmount = item.GrandTotal;
+                                details.ReceiveAmount = item.ReceiveAmount;
+                                details.DueAmount = 0;
+                                master.listOrder.Add(details);
+                            }
+                        }
+                    }
+                    master.Status = "Paid";
+                    int result = await paymentinService.SaveAsync(master);
+                    if (result > 0)
+                    {
+                        NavigationManager.NavigateTo($"/payment-in/details/{result}");
+                    }
+                    else
+                    {
+                    }
+                }
+            }
+        }
+        finally
+        {
+            isProcessing = false;
+        }
+    }
+    private bool CheckValidation()
+    {
+        if (!TodoList.Any())
+        {
+            Snackbar.Add("Invalid entry.", Severity.Error);
+            return false;
+        }
+        return true;
+    }
+    void editItem(int id)
+    {
+        var myTodo = TodoList.FirstOrDefault(x => x.SalesMasterId == id);
+        viewMaster.SalesMasterId = myTodo.SalesMasterId;
+        viewMaster.GrandTotal = myTodo.GrandTotal;
+        viewMaster.BalanceDue = myTodo.BalanceDue;
+        viewMaster.ReceiveAmount = myTodo.ReceiveAmount;
+        editedID = id;
+        AddToList();
+    }
+    private async void AddToList()
+    {
+        if (viewMaster.SalesMasterId == 0)
+        {
+            Snackbar.Add("Invalid entry.", Severity.Error);
+            return;
+        }
+        if (editedID == 0)
+        {
+            var myTodoItem = new SalesMasterView()
+                {
+                    SalesMasterId = viewMaster.SalesMasterId,
+                    GrandTotal = viewMaster.GrandTotal,
+                    BalanceDue = viewMaster.BalanceDue,
+                    ReceiveAmount = viewMaster.ReceiveAmount
+                };
+            TodoList.Add(myTodoItem);
+            viewMaster.SalesMasterId = 0;
+            viewMaster.GrandTotal = 0;
+            viewMaster.BalanceDue = 0;
+            viewMaster.ReceiveAmount = 0;
+        }
+        else
+        {
+            var myTodos = TodoList.FirstOrDefault(x => x.SalesMasterId == editedID);
+            if (viewMaster.ReceiveAmount > viewMaster.BalanceDue)
+            {
+                myTodos.SalesMasterId = viewMaster.SalesMasterId;
+                myTodos.GrandTotal = viewMaster.GrandTotal;
+                myTodos.BalanceDue = viewMaster.BalanceDue;
+                myTodos.ReceiveAmount = 0;
+                master.Amount = viewMaster.ReceiveAmount;
+                viewMaster.SalesMasterId = 0;
+                viewMaster.GrandTotal = 0;
+                viewMaster.BalanceDue = 0;
+                viewMaster.ReceiveAmount = 0;
+                editedID = 0;
+            }
+            else
+            {
+                myTodos.SalesMasterId = viewMaster.SalesMasterId;
+                myTodos.GrandTotal = viewMaster.GrandTotal;
+                myTodos.ReceiveAmount = viewMaster.ReceiveAmount;
+                viewMaster.SalesMasterId = 0;
+                viewMaster.GrandTotal = 0;
+                viewMaster.ReceiveAmount = 0;
+                editedID = 0;
+            }
+        }
+        CalculateTotal();
+        StateHasChanged();
+    }
+    private async Task Delete(int id)
+    {
+        var myTodo = TodoList.FirstOrDefault(x => x.SalesMasterId == id);
+        if (myTodo != null) TodoList.Remove(myTodo);
+        CalculateTotal();
+        StateHasChanged();
+    }
+    private async void CalculateTotal()
+    {
+        decimal decPayAmount = 0;
+        foreach (var item in TodoList)
+        {
+            decPayAmount = decPayAmount + item.ReceiveAmount;
+        }
+        master.Amount = decPayAmount;
+        master.PaidAmount = decPayAmount;
+        StateHasChanged();
+    }
+    private async void ChangeCustomer(int id)
+    {
+        if (id > 0)
+        {
+            TodoList = await salesInvoiceService.PaymentInAllocationsCustomerAsync(id);
+            master.Amount = TodoList.Sum(item => item.ReceiveAmount);
+            StateHasChanged();
+        }
+        else
+        {
+            master.Amount = 0;
+            TodoList = null;
+        }
+    }
+}

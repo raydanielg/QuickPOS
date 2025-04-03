@@ -1,0 +1,82 @@
+﻿@page "/report"
+<div class="container mt-4">
+    <!-- Page Header -->
+    <div class="section mb-4">
+        <div class="row">
+            <div class="col-12">
+                <div class="page-header">
+                    <h4 class="mb-2">Reports</h4>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Reports Section -->
+    <div class="card">
+        <div class="card-body">
+            <div class="row g-4">
+                <!-- Accounting Reports -->
+                <div class="col-lg-6 col-sm-12">
+                    <div class="p-3 border rounded shadow-sm">
+                        <div class="d-flex align-items-center mb-3">
+                            <i class="fas fa-calculator text-primary me-3 fs-4"></i>
+                            <h5 class="mb-0">Accounting & Account Reports</h5>
+                        </div>
+                        <ul class="list-unstyled">
+                            <li><a href="/report/day_book" class="text-primary"><i class="fas fa-angle-right me-2"></i>Day Book</a></li>
+                            @* <li><a href="/report/cash_book" class="text-primary"><i class="fas fa-angle-right me-2"></i>Cash Book</a></li>
+                            <li><a href="/report/bank_book" class="text-primary"><i class="fas fa-angle-right me-2"></i>Bank Book</a></li> *@
+                            <li><a href="/report/trail_balance" class="text-primary"><i class="fas fa-angle-right me-2"></i>Trial Balance</a></li>
+                            <li><a href="/report/ledger-report" class="text-primary"><i class="fas fa-angle-right me-2"></i>Ledger</a></li>
+                            <li><a href="/report/balance-sheet" class="text-primary"><i class="fas fa-angle-right me-2"></i>Balance Sheet</a></li>
+                            <li><a href="/report/profit_loss" class="text-primary"><i class="fas fa-angle-right me-2"></i>Profit and Loss</a></li>
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Purchase Reports -->
+                <div class="col-lg-6 col-sm-12">
+                    <div class="p-3 border rounded shadow-sm">
+                        <div class="d-flex align-items-center mb-3">
+                            <i class="fas fa-shopping-cart text-warning me-3 fs-4"></i>
+                            <h5 class="mb-0">Purchase Reports</h5>
+                        </div>
+                        <ul class="list-unstyled">
+                            <li><a href="/report/purchase-by-supplier" class="text-warning"><i class="fas fa-angle-right me-2"></i>Purchase (Supplier Wise)</a></li>
+                            <li><a href="/report/purchase-by-item" class="text-warning"><i class="fas fa-angle-right me-2"></i>Purchase (Item Wise)</a></li>
+                            <li><a href="/report/supplier-payable-summary" class="text-warning"><i class="fas fa-angle-right me-2"></i>Supplier Payable Summary</a></li>
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Sales Reports -->
+                <div class="col-lg-6 col-sm-12">
+                    <div class="p-3 border rounded shadow-sm">
+                        <div class="d-flex align-items-center mb-3">
+                            <i class="fas fa-chart-line text-success me-3 fs-4"></i>
+                            <h5 class="mb-0">Sales Reports</h5>
+                        </div>
+                        <ul class="list-unstyled">
+                            <li><a href="/report/sales-by-customer" class="text-success"><i class="fas fa-angle-right me-2"></i>Sales (Customer Wise)</a></li>
+                            <li><a href="/report/sales-item" class="text-success"><i class="fas fa-angle-right me-2"></i>Sales (Item Wise)</a></li>
+                            <li><a href="/report/customer-receive-summary" class="text-success"><i class="fas fa-angle-right me-2"></i>Customer Receive Summary</a></li>
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Inventory Management -->
+                <div class="col-lg-6 col-sm-12">
+                    <div class="p-3 border rounded shadow-sm">
+                        <div class="d-flex align-items-center mb-3">
+                            <i class="fas fa-warehouse text-info me-3 fs-4"></i>
+                            <h5 class="mb-0">Inventory Management</h5>
+                        </div>
+                        <ul class="list-unstyled">
+                            <li><a href="/report/stock" class="text-info"><i class="fas fa-angle-right me-2"></i>Stock Summary</a></li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

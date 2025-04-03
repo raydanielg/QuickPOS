@@ -1,0 +1,227 @@
+﻿@page "/supplier/add"
+@page "/supplier/{id:int}"
+@inject AccountLedgerService accountLedgerService
+@inject AccountGroupService accountGroupService
+@inject NavigationManager NavigationManager
+@inject MudBlazor.ISnackbar Snackbar
+@inject IJSRuntime JsRuntime
+
+<div class="container mt-4">
+    <!-- Header Section -->
+    <div class="row align-items-center mb-3">
+        <div class="col">
+            <h4>Supplier</h4>
+        </div>
+        <div class="col text-end">
+            <a class="btn btn-primary" href="/customer">
+                <i class="fas fa-arrow-left me-2"></i> Back
+            </a>
+        </div>
+    </div>
+
+    <!-- Table Section -->
+    <div class="row">
+        <EditForm Model="model" OnValidSubmit="Save">
+								<DataAnnotationsValidator />
+								<div class="row">
+									<div class="col-lg-8 col-sm-6 col-12">
+										<div class="form-group">
+						<label>Supplier Name</label>
+											<input type="text" class="form-control" @bind="model.LedgerName">
+											<ValidationMessage For="@(() => model.LedgerName)" />
+										</div>
+									</div>
+									<div class="col-lg-4 col-sm-6 col-12">
+										<div class="form-group">
+											<label>Code</label>
+						<input type="text" class="form-control" @bind="model.LedgerCode" readonly>
+											<ValidationMessage For="@(() => model.LedgerCode)" />
+										</div>
+									</div>
+									<div class="col-lg-8 col-sm-6 col-12">
+										<div class="form-group">
+											<label>Address</label>
+						<input type="text" class="form-control" @bind="model.Address">
+											<ValidationMessage For="@(() => model.Address)" />
+										</div>
+									</div>
+									<div class="col-lg-4 col-sm-6 col-12">
+										<div class="form-group">
+											<label>Tax No</label>
+						<input type="text" class="form-control" @bind="model.TaxNo">
+											<ValidationMessage For="@(() => model.TaxNo)" />
+										</div>
+									</div>
+									<hr />
+									<div class="col-lg-4 col-sm-6 col-12">
+										<div class="form-group">
+											<label>Phone</label>
+						<input type="text" class="form-control" @bind="model.Phone">
+											<ValidationMessage For="@(() => model.Phone)" />
+										</div>
+									</div>
+									<div class="col-lg-4 col-sm-6 col-12">
+										<div class="form-group">
+											<label>Country</label>
+						<input type="text" class="form-control" @bind="model.Country">
+											<ValidationMessage For="@(() => model.Country)" />
+										</div>
+									</div>
+									<div class="col-lg-4 col-sm-6 col-12">
+										<div class="form-group">
+											<label>City</label>
+						<input type="text" class="form-control" @bind="model.City">
+											<ValidationMessage For="@(() => model.City)" />
+										</div>
+									</div>
+									<hr/>
+									<h6>Additional Field</h6>
+									<div class="col-lg-4 col-sm-6 col-12">
+										<div class="form-group">
+											<label>Email</label>
+						<input type="text" class="form-control" @bind="model.Email">
+											<ValidationMessage For="@(() => model.Email)" />
+										</div>
+									</div>
+									<div class="col-lg-4 col-sm-6 col-12">
+										<div class="form-group">
+											<label>Credit Period</label>
+						<input type="text" class="form-control" @bind="model.CreditPeriod">
+											<ValidationMessage For="@(() => model.CreditPeriod)" />
+										</div>
+									</div>
+									<div class="col-lg-4 col-sm-6 col-12">
+										<div class="form-group">
+											<label>Credit Limit</label>
+						<input type="text" class="form-control" @bind="model.CreditLimit">
+											<ValidationMessage For="@(() => model.CreditLimit)" />
+										</div>
+									</div>
+									<div class="col-lg-3 col-sm-6 col-12">
+										<div class="form-group">
+											<label>Opening Balance</label>
+						<input type="text" class="form-control" @bind="model.OpeningBalance">
+
+											<ValidationMessage For="@(() => model.OpeningBalance)" />
+										</div>
+									</div>
+									<div class="col-lg-3 col-sm-6 col-12">
+										<div class="form-group">
+											<label>Opening Date</label>
+						<InputDate class="form-control" @bind-Value="@model.OpeningDate" />
+
+											<ValidationMessage For="@(() => model.OpeningDate)" />
+										</div>
+									</div>
+									<div class="col-lg-1 col-sm-6 col-12">
+										<select @bind="model.CrOrDr" class="form-select" style="margin-top:30px;">
+											<option value="Dr">Dr</option>
+											<option value="Cr">Cr</option>
+										</select>
+									</div>
+								</div>
+								<div class="row">
+									<div class="col-lg-12">
+
+											<div class="column-5">
+												<button type="submit" class="btn btn-secondary">Save</button>
+						<a href="/supplier" class="btn btn-secondary">Cancel</a>
+											</div>
+									</div>
+								</div>
+							</EditForm>
+    </div>
+</div>
+
+@code {
+    [Parameter]
+    public int id { get; set; }
+    private AccountLedger model = new AccountLedger();
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        try
+        {
+            if(id == 0)
+            {
+                int strSerialNo = await accountLedgerService.GetSerialNo();
+                model.LedgerId = strSerialNo;
+                model.LedgerCode = strSerialNo.ToString();
+                model.AccountGroupId = 22;
+                model.LedgerId = 0;
+                model.LedgerName = string.Empty;
+                model.Phone = string.Empty;
+                model.Email = string.Empty;
+                model.Address = string.Empty;
+                model.Country = string.Empty;
+                model.City = string.Empty;
+                model.TaxNo = string.Empty;
+                model.ShippingAddress = string.Empty;
+                model.CreditLimit = 0;
+                model.CreditPeriod = 0;
+                model.OpeningBalance = 0;
+                model.ShippingAddress = string.Empty;
+                model.CrOrDr = "Dr";
+                model.IsDefault = false;
+                model.BankName = string.Empty;
+                model.BranchName = string.Empty;
+                model.BankIFSCCode = string.Empty;
+                model.AccountName = string.Empty;
+                model.AccountNo = string.Empty;
+                model.OpeningDate = DateTime.UtcNow;
+                StateHasChanged();
+            }
+            else
+            {
+                model = await accountLedgerService.GetAccountLedgerByIdAsync(id);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error loading data: {ex.Message}", Severity.Error);
+        }
+    }
+    private async Task Save()
+    {
+        try
+        {
+            if (model.LedgerId == 0)
+            {
+                int strSerialNo = await accountLedgerService.GetSerialNo();
+                model.LedgerId = strSerialNo;
+                model.LedgerCode = strSerialNo.ToString();
+                int value = await accountLedgerService.AddAccountLedgerAsync(model);
+                if (value > 0)
+                {
+					Snackbar.Add("Supplier created successfully", Severity.Success);
+                    NavigationManager.NavigateTo("/supplier");
+                }
+                else
+                {
+					Snackbar.Add("Supplier code already exists.", Severity.Info);
+                }
+            }
+            else
+            {
+                bool isUpdated = await accountLedgerService.UpdateAccountLedgerAsync(model);
+                if (isUpdated == true)
+                {
+					Snackbar.Add("Supplier updated successfully", Severity.Success);
+                    NavigationManager.NavigateTo("/supplier");
+                }
+                else
+                {
+					Snackbar.Add("Customer code already exists.", Severity.Info);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+			Snackbar.Add($"Error saving Supplier: {ex.Message}", Severity.Success);
+        }
+    }
+}

@@ -1,0 +1,64 @@
+﻿@page "/account-group"
+@inject AccountGroupService accountGroupService
+@inject MudBlazor.ISnackbar Snackbar
+@inject IJSRuntime JsRuntime
+
+<div class="container mt-4">
+    <!-- Header Section -->
+    <div class="row align-items-center mb-3">
+        <div class="col">
+            <h4>Account Group</h4>
+        </div>
+        <div class="col text-end">
+
+        </div>
+    </div>
+
+    <!-- Table Section -->
+    <div class="row">
+        <div class="col">
+            <div class="table-responsive">
+                <MudTable Items="@listAccountGroup" Dense="@dense" Hover="@hover">
+
+                    <HeaderContent>
+                        <MudTh>Account Group Name</MudTh>
+                        <MudTh>Under</MudTh>
+                        <MudTh>Group</MudTh>
+                    </HeaderContent>
+                    <RowTemplate>
+                        <MudTd DataLabel="AccountGroupName" Style="width:400px;">@context.AccountGroupName</MudTd>
+                        <MudTd DataLabel="Under" Style="width:400px;">@context.Under</MudTd>
+                        <MudTd DataLabel="Nature" Style="width:200px;">@context.Nature</MudTd>
+                    </RowTemplate>
+                    <PagerContent>
+                        <MudTablePager />
+                    </PagerContent>
+                </MudTable>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+@code {
+    private bool dense = true;
+    private bool hover = true;
+    private List<AccountGroupView> listAccountGroup = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        try
+        {
+            listAccountGroup = await accountGroupService.GetAllAccountGroupAsync();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error loading data: {ex.Message}", Severity.Error);
+        }
+    }
+}

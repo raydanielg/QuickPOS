@@ -1,0 +1,592 @@
+﻿@using System.Security.Claims;
+@inject PaymentInService paymentinService
+@inject SalesRegisterService _register
+@inject SalesInvoiceService salesInvoiceService
+@inject InvoiceSettingService invoiceSettingService
+@inject UserService userService
+@inject CompanyService companyService
+@inject MudBlazor.ISnackbar Snackbar
+@inject IJSRuntime JSRuntime
+<div class="modal fade show d-block" style="background-color: rgba(0, 0, 0, 0.5);">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <!-- Header -->
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title d-flex align-items-center">
+                    <i class="fa-solid fa-tags me-2"></i> Payment Details
+                </h5>
+                <button type="button" class="btn-close text-white" @onclick="CloseModal" aria-label="Close"></button>
+            </div>
+
+            <!-- Body -->
+            <div class="modal-body">
+                <div class="row g-3">
+
+                    <!-- Left Section -->
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">Due Amount</label>
+                            <input type="text" @bind="master.GrandTotal" class="form-control form-control-lg text-end fw-bold" required readonly>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">Tendered</label>
+                            <input type="text" @bind="decTendered" @onkeyup="CalculateTender" @onclick="CalculateTender" class="form-control form-control-lg text-end">
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">Notes</label>
+                            <textarea @bind="master.Narration" class="form-control" rows="3" placeholder="Add any notes here..."></textarea>
+                        </div>
+                    </div>
+
+                    <!-- Right Section -->
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">
+                                @if (CashChange == 0)
+                                {
+                                    <span>Amount Remaining</span>
+                                }
+                                else
+                                {
+                                    <span>Change to be Given</span>
+                                }
+                            </label>
+                            <input type="text" @bind="CashChange" class="form-control form-control-lg text-end text-success fw-bold" readonly>
+                        </div>
+
+                        <!-- Embedded Calculator -->
+                        <div class="mt-4">
+                            <Calculator OnButtonClick="HandleChildButtonClick"></Calculator>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Footer -->
+            <div class="modal-footer d-flex justify-content-end">
+                <button id="submit-btn" type="button" @onclick="Save" class="btn btn-primary btn-lg px-4" disabled="@(isProcessing)">
+                    @if (isProcessing)
+                    {
+                        <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                        <span>Processing...</span>
+                    }
+                    else
+                    {
+                        @if (type == "Cash")
+                        {
+                            <i class="fa-solid fa-money-bill me-2"></i>
+                            <span>Cash</span>
+                        }
+                        else if (type == "Card")
+                        {
+                            <i class="fa-solid fa-credit-card me-2"></i>
+                            <span>Card</span>
+                        }
+                        else if (type == "UPI")
+                        {
+                            <i class="fa-solid fa-qrcode me-2"></i>
+                            <span>UPI</span>
+                        }
+                        else if (type == "Hold")
+                        {
+                            <i class="fas fa-pause me-1"></i>
+                            <span>Hold</span>
+                        }
+                        else if (type == "CreditSales")
+                        {
+                            <i class="fa-solid fa-handshake me-2"></i>
+                            <span>Credit Sales</span>
+                        }
+                    }
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter] public EventCallback<int> OnButtonClick { get; set; }
+    [Parameter]
+    public SalesMaster master { get; set; } = new();
+    [Parameter]
+    public string type { get; set; }
+    [Parameter]
+    public List<ProductView> productList { get; set; } = new();
+    [Parameter]
+    public List<DeleteItem> deleteNo { get; set; } = new();
+    bool isProcessing;
+    //CreditNotes
+    PosCreditNoteMaster creditNotes = new();
+    decimal decTendered = 0;
+    decimal CashChange = 0;
+
+    //UserMaster? currentUser;
+    CompanyView company = new();
+    protected override async Task OnInitializedAsync()
+    {
+
+        if (master.SalesMasterId == 0 && type == "Hold")
+        {
+            await SaveHoldBill();
+        }
+        else
+        {
+            //master.PayAmount = master.GrandTotal;
+            decTendered = master.GrandTotal;
+        }
+        StateHasChanged();
+    }
+    private async void Save()
+    {
+        isProcessing = true;
+
+        try
+        {
+            var invoice = await invoiceSettingService.GetInvoiceSettingByIdAsync(master.VoucherTypeId);
+            string strSerialNo = await salesInvoiceService.GetSerialNo();
+            master.VoucherNo = $"{invoice.Suffix ?? string.Empty}-{strSerialNo}-{invoice.Prefix ?? string.Empty}";
+            master.SerialNo = strSerialNo;
+            // Check if at least one product is added
+            if (!productList.Any())
+            {
+                Snackbar.Add("Add at least 1 product", Severity.Error);
+                return;
+            }
+            // Check for zero quantity in any product
+            foreach (var proItem in productList)
+            {
+                if (proItem.Qty == 0)
+                {
+                    Snackbar.Add("Transactions cannot be created with Zero Quantity", Severity.Error);
+                    return;
+                }
+            }
+            // Validate master fields
+            if (master.LedgerId == 0)
+            {
+                Snackbar.Add("Select a valid customer.", Severity.Error);
+                return;
+            }
+            if (master.GrandTotal == 0)
+            {
+                Snackbar.Add("Grand Total cannot be zero.", Severity.Error);
+                return;
+            }
+            if (master.WarehouseId == 0)
+            {
+                Snackbar.Add("Choose a warehouse.", Severity.Error);
+                return;
+            }
+            if (master.SalesMasterId == 0)
+            {
+                await SaveAsync();
+            }
+            else
+            {
+                await UpdateAsync();
+            }
+        }
+        finally
+        {
+            isProcessing = false;
+        }
+    }
+    private async Task SaveAsync()
+    {
+        // Prepare product details
+        foreach (var item in productList)
+        {
+            if (item.ProductId > 0)
+            {
+                var details = new SalesDetails
+                    {
+                        ProductId = item.ProductId,
+                        Qty = item.Qty,
+                        UnitId = item.UnitId,
+                        Rate = item.SalesRate,
+                        Discount = item.Discount,
+                        DiscountAmount = item.DiscountAmount,
+                        TaxId = item.TaxId == 0 ? 1 : item.TaxId,
+                        TaxRate = item.TaxRate,
+                        TaxAmount = item.TaxAmount,
+                        BatchId = item.BatchId,
+                        GrossAmount = item.GrossAmount,
+                        NetAmount = item.NetAmount,
+                        Amount = item.Amount,
+                        OrderDetailsId = item.OrderDetailsId
+                    };
+                master.listOrder.Add(details);
+            }
+        }
+
+        // Set transaction status
+
+
+        // Save the transaction
+        if (type == "Cash")
+        {
+            master.PaymentId = 1;
+            master.Status = "Pending";
+            master.PaymentStatus = "Cash";
+            int result = await salesInvoiceService.SaveAsync(master);
+
+            if (result > 0)
+            {
+                //SaveReceivePayment
+                if (master.GrandTotal > 0)
+                {
+                    await SaveReceivePaymentAsync(result);
+                }
+                Snackbar.Add("Sales invoice created successfully.", Severity.Success);
+                await OnButtonClick.InvokeAsync(result);
+            }
+            else
+            {
+                Snackbar.Add("Invalid transaction.", Severity.Info);
+            }
+        }
+        else if (type == "Card")
+        {
+            master.PaymentId = 2;
+            master.Status = "Pending";
+            master.PaymentStatus = "Card";
+            int result = await salesInvoiceService.SaveAsync(master);
+
+            if (result > 0)
+            {
+                //SaveReceivePayment
+                if (master.GrandTotal > 0)
+                {
+                    await SaveReceivePaymentAsync(result);
+                }
+                Snackbar.Add("Sales invoice created successfully.", Severity.Success);
+                await OnButtonClick.InvokeAsync(master.SalesMasterId);
+            }
+            else
+            {
+                Snackbar.Add("Invalid transaction.", Severity.Info);
+            }
+        }
+        else if (type == "UPI")
+        {
+            master.PaymentId = 3;
+            master.Status = "Pending";
+            master.PaymentStatus = "UPI";
+            int result = await salesInvoiceService.SaveAsync(master);
+
+            if (result > 0)
+            {
+                //SaveReceivePayment
+                if (master.GrandTotal > 0)
+                {
+                    await SaveReceivePaymentAsync(result);
+                }
+                Snackbar.Add("Sales invoice created successfully.", Severity.Success);
+                await OnButtonClick.InvokeAsync(result);
+            }
+            else
+            {
+                Snackbar.Add("Invalid transaction.", Severity.Info);
+            }
+        }
+        else if (type == "CreditSales")
+        {
+            master.Status = "Pending";
+            master.PaymentStatus = "CreditSales";
+            int result = await salesInvoiceService.SaveAsync(master);
+
+            if (result > 0)
+            {
+                Snackbar.Add("Sales invoice created successfully.", Severity.Success);
+                await OnButtonClick.InvokeAsync(result);
+            }
+            else
+            {
+                Snackbar.Add("Invalid transaction.", Severity.Info);
+            }
+        }
+        else
+        {
+
+        }
+    }
+    private async Task UpdateAsync()
+    {
+        master.ModifyDate = DateTime.UtcNow;
+
+        // Prepare product details
+        foreach (var item in productList)
+        {
+            if (item.ProductId > 0)
+            {
+                var details = new SalesDetails
+                    {
+                        SalesDetailsId = item.SalesDetailsId,
+                        SalesMasterId = master.SalesMasterId,
+                        ProductId = item.ProductId,
+                        Qty = item.Qty,
+                        UnitId = item.UnitId,
+                        Rate = item.SalesRate,
+                        Discount = item.Discount,
+                        DiscountAmount = item.DiscountAmount,
+                        TaxId = item.TaxId == 0 ? 1 : item.TaxId,
+                        TaxRate = item.TaxRate,
+                        TaxAmount = item.TaxAmount,
+                        BatchId = item.BatchId,
+                        GrossAmount = item.GrossAmount,
+                        NetAmount = item.NetAmount,
+                        Amount = item.Amount,
+                        OrderDetailsId = item.OrderDetailsId
+                    };
+                master.listOrder.Add(details);
+            }
+        }
+        foreach (var items in deleteNo)
+        {
+            DeleteItem details = new DeleteItem();
+            if (items != null)
+            {
+                details.SalesDetailsId = items.SalesDetailsId;
+                master.listDelete.Add(details);
+            }
+
+        }
+        if ( master.PaymentStatus == "Hold" && type == "Cash")
+        {
+            var invoice = await invoiceSettingService.GetInvoiceSettingByIdAsync(master.VoucherTypeId);
+            string strSerialNo = await salesInvoiceService.GetSerialNo();
+            master.VoucherNo = $"{invoice.Suffix ?? string.Empty}-{strSerialNo}-{invoice.Prefix ?? string.Empty}";
+            master.SerialNo = strSerialNo;
+            master.PaymentStatus = "Cash";
+            bool isSave = await salesInvoiceService.UpdateHoldBillAsync(master);
+
+            if (isSave == true)
+            {
+                Snackbar.Add("Hold bill created successfully.", Severity.Success);
+                isProcessing = false;
+                await OnButtonClick.InvokeAsync(master.SalesMasterId);
+            }
+            else
+            {
+                Snackbar.Add("Invalid transaction.", Severity.Info);
+                isProcessing = false;
+            }
+        }
+        else
+        {
+            if(type == "Cash")
+            {
+                master.PaymentId = 1;
+            }
+            else if(type == "Card")
+            {
+                master.PaymentId = 2;
+            }
+            else if(type == "UPI")
+            {
+                master.PaymentId = 3;                
+            }
+            // Update the transaction
+            bool result = await salesInvoiceService.UpdateAsync(master);
+
+            if (result == true)
+            {
+                Snackbar.Add("Sales invoice updated successfully.", Severity.Success);
+                isProcessing = false;
+            }
+            else
+            {
+                Snackbar.Add("Invalid transaction.", Severity.Info);
+                isProcessing = false;
+            }            
+        }
+    }
+    private async Task SaveHoldBill()
+    {
+        isProcessing = true;
+
+        try
+        {
+            var invoice = await invoiceSettingService.GetInvoiceSettingByIdAsync(master.VoucherTypeId);
+            string strSerialNo = await salesInvoiceService.GetSerialNo();
+            master.VoucherNo = $"{invoice.Suffix ?? string.Empty}-{strSerialNo}-{invoice.Prefix ?? string.Empty}";
+            master.SerialNo = strSerialNo;
+            // Check if at least one product is added
+            if (!productList.Any())
+            {
+                Snackbar.Add("Add at least 1 product", Severity.Error);
+                return;
+            }
+            // Check for zero quantity in any product
+            foreach (var proItem in productList)
+            {
+                if (proItem.Qty == 0)
+                {
+                    Snackbar.Add("Transactions cannot be created with Zero Quantity", Severity.Error);
+                    return;
+                }
+            }
+            // Validate master fields
+            if (master.LedgerId == 0)
+            {
+                Snackbar.Add("Select a valid customer.", Severity.Error);
+                return;
+            }
+            if (master.GrandTotal == 0)
+            {
+                Snackbar.Add("Grand Total cannot be zero.", Severity.Error);
+                return;
+            }
+            if (master.WarehouseId == 0)
+            {
+                Snackbar.Add("Choose a warehouse.", Severity.Error);
+                return;
+            }
+            if (master.SalesMasterId == 0)
+            {
+                // Proceed with saving if all validations pass
+                master.TotalAmount = master.TotalAmount;
+                master.TaxRate = 0;
+                master.PayAmount = 0;
+
+                master.PreviousDue = master.GrandTotal;
+                master.BalanceDue = master.GrandTotal;
+                master.FinancialYearId = company.FinancialYearId;
+                master.VoucherTypeId = master.VoucherTypeId;
+                if (master.IsPayment == true)
+                {
+                    master.IsPayment = true;
+                }
+                else
+                {
+                    master.IsPayment = false;
+                    master.CashBankId = 0;
+                    master.ReferenceReceipt = string.Empty;
+                }
+
+                // Prepare product details
+                foreach (var item in productList)
+                {
+                    if (item.ProductId > 0)
+                    {
+                        var details = new SalesDetails
+                            {
+                                ProductId = item.ProductId,
+                                Qty = item.Qty,
+                                UnitId = item.UnitId,
+                                Rate = item.SalesRate,
+                                Discount = item.Discount,
+                                DiscountAmount = item.DiscountAmount,
+                                TaxId = item.TaxId == 0 ? 1 : item.TaxId,
+                                TaxRate = item.TaxRate,
+                                TaxAmount = item.TaxAmount,
+                                BatchId = item.BatchId,
+                                GrossAmount = item.GrossAmount,
+                                NetAmount = item.NetAmount,
+                                Amount = item.Amount,
+                                OrderDetailsId = item.OrderDetailsId
+                            };
+                        master.listOrder.Add(details);
+                    }
+                }
+
+                    master.SerialNo = "0";
+                    master.VoucherNo = string.Empty;
+                    master.PaymentId = 1;
+                    master.Status = "Pending";
+                    master.PaymentStatus = "Hold";
+                    int result = await salesInvoiceService.SaveHoldBillAsync(master);
+
+                    if (result > 0)
+                    {
+                        Snackbar.Add("Hold bill created successfully.", Severity.Success);
+                        await OnButtonClick.InvokeAsync(result);
+                    }
+                    else
+                    {
+                        Snackbar.Add("Invalid transaction.", Severity.Info);
+                    }
+            }
+            else
+            {
+
+            }
+        }
+        finally
+        {
+            isProcessing = false;
+        }
+    }
+    private async Task SaveReceivePaymentAsync(int salesId)
+    {
+        // Initialize a new ReceiptMaster object
+        ReceiptMaster paymentMaster = new ReceiptMaster();
+
+        // Constants
+        const int ReceivePaymentVoucherTypeId = 3; // Receive Voucher Type
+
+        // Get the invoice settings and serial number
+        var invoice = await invoiceSettingService.GetInvoiceSettingByIdAsync(ReceivePaymentVoucherTypeId);
+        string serialNo = await paymentinService.GetSerialNo();
+
+        // Populate ReceiptMaster properties
+        paymentMaster.Date = DateTime.UtcNow;
+        paymentMaster.VoucherNo = $"{invoice.Prefix}{serialNo}{invoice.Suffix}";
+        paymentMaster.SerialNo = serialNo;
+        paymentMaster.LedgerId = master.LedgerId; // Ensure `master` is properly defined in the context
+        paymentMaster.VoucherTypeId = ReceivePaymentVoucherTypeId;
+        paymentMaster.UserId = master.UserName; // Consider setting a meaningful user ID
+        paymentMaster.FinancialYearId = company.FinancialYearId; // Ensure `company` is properly defined
+        paymentMaster.SalesMasterId = salesId;
+        paymentMaster.Narration = string.Empty;
+        paymentMaster.Type = "CustomerPayment";
+        paymentMaster.Status = "Paid";
+        paymentMaster.PaidAmount = master.GrandTotal;
+        paymentMaster.Amount = master.GrandTotal;
+        paymentMaster.AddedDate = DateTime.UtcNow;
+
+        // Create a new ReceiptDetails instance and populate its properties
+        ReceiptDetails details = new ReceiptDetails
+            {
+                LedgerId = 1, // Use a constant or parameter for maintainability if this value is reused
+                SalesMasterId = salesId, // Link the ReceiptDetails to the given SalesMasterId
+                TotalAmount = master.GrandTotal, // Assign the total grand amount from master
+                ReceiveAmount = master.GrandTotal, // Assign the payment amount from master
+                DueAmount = 0 // Assumes the due amount is fully paid; adjust logic if partial payments are possible
+            };
+
+        // Add the newly created ReceiptDetails instance to the listOrder collection
+        paymentMaster.listOrder.Add(details);
+
+        // Save the payment master record and handle the result
+        int result = await paymentinService.SaveAsync(paymentMaster);
+
+        // Optional: Add error handling or logging based on the result
+        if (result <= 0)
+        {
+            // Log or handle failure case
+            throw new Exception("Failed to save payment information.");
+        }
+    }
+    private void CalculateTender()
+    {
+        var balance = decTendered - master.GrandTotal;
+        CashChange = balance < 0 ? Math.Abs(balance) : 0;
+        //master.BalanceDue = balance >= 0 ? balance : 0;
+        StateHasChanged();
+    }
+    private async Task CloseModal()
+    {
+        await OnButtonClick.InvokeAsync(0);
+    }
+    private void HandleChildButtonClick(string arg)
+    {
+        decTendered = Convert.ToDecimal(arg);
+        var balance = decTendered - master.GrandTotal;
+        CashChange = Math.Round(balance , 2);
+        //master.BalanceDue = Math.Round(balance , 2);
+        StateHasChanged();
+    }
+}

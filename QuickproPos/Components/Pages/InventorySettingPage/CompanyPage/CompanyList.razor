@@ -1,0 +1,190 @@
+﻿@inject WarehouseService warehouseService
+@inject CompanyService CompanyService
+@inject CurrencyService currencyService
+@inject MudBlazor.ISnackbar Snackbar
+<div class="container">
+    <EditForm Model="company" OnValidSubmit="SaveCompany">
+        <DataAnnotationsValidator />
+        <ValidationSummary />
+
+        <div class="row">
+            <!-- Company Name -->
+            <div class="col-md-6">
+                <label for="companyName" class="form-label">Company Name</label>
+                <InputText id="companyName" class="form-control" @bind-Value="company.CompanyName" />
+
+            </div>
+
+            <!-- Address -->
+            <div class="col-md-6">
+                <label for="address" class="form-label">Address</label>
+                <InputText id="address" class="form-control" @bind-Value="company.Address" />
+            </div>
+        </div>
+
+        <div class="row mt-3">
+            <!-- Mobile Number -->
+            <div class="col-md-6">
+                <label for="mobileNo" class="form-label">Mobile No</label>
+                <InputText id="mobileNo" class="form-control" @bind-Value="company.MobileNo" />
+            </div>
+
+            <!-- Email -->
+            <div class="col-md-6">
+                <label for="email" class="form-label">Email</label>
+                <InputText id="email" class="form-control" @bind-Value="company.Email" />
+            </div>
+        </div>
+
+        <div class="row mt-3">
+            <!-- Currency -->
+            <div class="col-md-6">
+                <label for="currencyId" class="form-label">Currency</label>
+                <select class="form-select" @bind="company.CurrencyId">
+                    @if(listCurrency !=null)
+                    {
+                        @foreach(var item in listCurrency)
+                        {
+                            <option value="@item.CurrencyId">@item.CurrencyName</option>
+                        }
+                    }
+                </select>
+            </div>
+            <!-- Warehouse -->
+            <div class="col-md-6">
+                <label for="currencyId" class="form-label">Warehouse</label>
+                <select class="form-select" @bind="company.WarehouseId">
+                    @if (listWarehouse != null)
+                    {
+                        @foreach (var item in listWarehouse)
+                        {
+                            <option value="@item.WarehouseId">@item.Name</option>
+                        }
+                    }
+                </select>
+            </div>
+        </div>
+
+        <div class="row mt-3">
+            <!-- Number of Decimals -->
+            <div class="col-md-6">
+                <label for="noofDecimal" class="form-label">Number of Decimals</label>
+                <InputNumber id="noofDecimal" class="form-control" @bind-Value="company.NoofDecimal" />
+            </div>
+
+            <!-- Website -->
+            <div class="col-md-6">
+                <label for="website" class="form-label">Website</label>
+                <InputText id="website" class="form-control" @bind-Value="company.Website" />
+            </div>
+        </div>
+
+        <div class="row mt-3">
+            <!-- GST -->
+            <div class="col-md-6">
+                <label for="gst" class="form-label">GST Number</label>
+                <InputText id="gst" class="form-control" @bind-Value="company.GST" />
+            </div>
+
+            <!-- PAN -->
+            <div class="col-md-6">
+                <label for="pan" class="form-label">PAN Number</label>
+                <InputText id="pan" class="form-control" @bind-Value="company.Pan" />
+            </div>
+        </div>
+
+        <div class="row mt-3">
+            <!-- LUT -->
+            <div class="col-md-6">
+                <label for="lut" class="form-label">LUT Number</label>
+                <InputText id="lut" class="form-control" @bind-Value="company.Lut" />
+            </div>
+
+            <!-- IEC -->
+            <div class="col-md-6">
+                <label for="iec" class="form-label">IEC Number</label>
+                <InputText id="iec" class="form-control" @bind-Value="company.Iec" />
+            </div>
+        </div>
+
+        <div class="row mt-3">
+            <!-- Logo URL -->
+            <div class="col-md-6">
+                <label for="logo" class="form-label">Logo</label>
+                @if (company.Logo == string.Empty)
+                {
+                    <img src="/img/noimage.png" height="60" width="60">
+                }
+                else
+                {
+                    <img src="@company.Logo" width="60" height="60">
+                }
+                <InputFile OnChange="OnFileChange" />
+                <ValidationMessage For="@(() => company.Logo)" />
+            </div>
+
+            <!-- Is Default -->
+            <div class="col-md-6">
+                <label for="isDefault" class="form-label">Is Default</label>
+                <InputCheckbox id="isDefault" class="form-check-input" @bind-Value="company.IsDefault" />
+            </div>
+        </div>
+
+        <div class="mt-3">
+            <button class="btn btn-primary" type="submit">Save Company</button>
+        </div>
+    </EditForm>
+</div>
+
+@code {
+    private Company company = new Company();
+    List<Currency> listCurrency;
+    List<Warehouse> listWarehouse;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+    private async Task LoadData()
+    {
+        company = await CompanyService.GetAllCompaniesAsync();
+        listCurrency = await currencyService.GetAllCurrencysAsync();
+        listWarehouse = await warehouseService.GetAllWarehousesAsync();
+    }
+    private async Task SaveCompany()
+    {
+        try
+        {
+                bool isUpdated = await CompanyService.UpdateCompanyAsync(company);
+                if (isUpdated == true)
+                {
+                    Snackbar.Add("Company updated successfully", Severity.Success);
+                    await LoadData();
+                }
+                else
+                {
+                Snackbar.Add("Company name already exists.", Severity.Info);
+                }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error saving Currency: {ex.Message}", Severity.Success);
+        }
+    }
+    async Task OnFileChange(InputFileChangeEventArgs e)
+    {
+        var format = "image/png";
+        var resizedImage = await e.File.RequestImageFileAsync(format, 226, 226);
+        var buffer = new byte[resizedImage.Size];
+        await resizedImage.OpenReadStream().ReadAsync(buffer);
+        var imageData = $"data:{format};base64,{Convert.ToBase64String(buffer)}";
+        if (imageData == null)
+        {
+            company.Logo = string.Empty;
+        }
+        else
+        {
+            company.Logo = imageData;
+        }
+    }
+}

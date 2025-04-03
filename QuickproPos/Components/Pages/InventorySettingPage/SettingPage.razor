@@ -1,0 +1,60 @@
+﻿@page "/setting"
+
+<div class="container mt-4">
+    <!-- Nav Tabs with Font Awesome Icons -->
+    <ul class="nav nav-tabs" id="myTab" role="tablist">
+        <li class="nav-item" role="presentation">
+            <a class="nav-link active" id="home-tab" data-bs-toggle="tab" href="#home" role="tab" aria-controls="home" aria-selected="true">
+                <i class="fas fa-home me-2"></i> Company
+            </a>
+        </li>
+        <li class="nav-item" role="presentation">
+            <a class="nav-link" id="profile-tab" data-bs-toggle="tab" href="#profile" role="tab" aria-controls="profile" aria-selected="false">
+                <i class="fas fa-user me-2"></i> Financial Year
+            </a>
+        </li>
+        <li class="nav-item" role="presentation">
+            <a class="nav-link" id="contact-tab" data-bs-toggle="tab" href="#contact" role="tab" aria-controls="contact" aria-selected="false">
+                <i class="fas fa-envelope me-2"></i> Tax
+            </a>
+        </li>
+        <li class="nav-item" role="presentation">
+            <a class="nav-link" id="contact-tab" data-bs-toggle="tab" href="#currency" role="tab" aria-controls="currency" aria-selected="false">
+                <i class="fas fa-dollar-sign me-2"></i> Currency
+            </a>
+        </li>
+        <li class="nav-item" role="presentation">
+            <a class="nav-link" id="invoice-tab" data-bs-toggle="tab" href="#invoice" role="tab" aria-controls="invoice" aria-selected="false">
+                <i class="fas fa-file-invoice me-2"></i> Invoice Setting
+            </a>
+        </li>
+    </ul>
+
+    <!-- Tab Content -->
+    <div class="tab-content" id="myTabContent">
+        <div class="tab-pane fade show active" id="home" role="tabpanel" aria-labelledby="home-tab">
+            <br />
+            <QuickproPos.Components.Pages.InventorySettingPage.CompanyPage.CompanyList />
+        </div>
+        <div class="tab-pane fade" id="profile" role="tabpanel" aria-labelledby="profile-tab">
+            <br/>
+            <QuickproPos.Components.Pages.InventorySettingPage.FinancialYearPage.FinancialYearList />
+        </div>
+        <div class="tab-pane fade" id="contact" role="tabpanel" aria-labelledby="contact-tab">
+            <br />
+            <QuickproPos.Components.Pages.InventorySettingPage.TaxPage.TaxList />
+        </div>
+        <div class="tab-pane fade" id="currency" role="tabpanel" aria-labelledby="currency-tab">
+            <br />
+            <QuickproPos.Components.Pages.InventorySettingPage.CurrencyPage.CurrencyList />
+        </div>
+        <div class="tab-pane fade" id="invoice" role="tabpanel" aria-labelledby="invoice-tab">
+            <br/>
+            <QuickproPos.Components.Pages.InventorySettingPage.InvoiceSettingPage.InvoiceSettingList />
+        </div>
+    </div>
+</div>
+
+@code {
+    // You can add any code for handling the tab behavior or logic here if necessary
+}

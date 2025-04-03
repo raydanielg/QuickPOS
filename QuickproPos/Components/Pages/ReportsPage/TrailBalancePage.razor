@@ -1,0 +1,136 @@
+﻿@page "/report/trail_balance"
+@inject CompanyService companyService
+@inject IPrintingService PrintingService
+@inject ReportService reportService
+@inject MudBlazor.ISnackbar Snackbar
+@inject IJSRuntime JsRuntime
+
+<PageTitle>Trail Balance</PageTitle>
+<div class="container mt-4">
+    <div class="card">
+        <div class="card-header">
+            <h4 class="text-center">Trail Balance</h4>
+        </div>
+        <div class="card-body">
+            <!-- Filter Section -->
+            <div class="row mb-3">
+                <div class="col-md-2">
+                    <label>From Date</label>
+                    <InputDate @bind-Value="@fromDate" class="form-control" />
+                </div>
+                <div class="col-md-2">
+                    <label>To Date</label>
+                    <InputDate @bind-Value="@toDate" class="form-control" />
+                </div>
+                <div class="col-md-4 d-flex align-items-end">
+                    <button class="btn btn-primary me-2" @onclick="LoadData"><i class="fas fa-search"></i> Search</button>
+                    <button class="btn btn-secondary me-2" @onclick="@(_ => PrintingService.Print("printable-form", PrintType.Html))"><i class="fas fa-print"></i> Print</button>
+                    <button class="btn btn-success me-2" @onclick="ExportToExcel"><i class="fas fa-file-excel"></i>Excel</button>
+                    <button class="btn btn-danger" @onclick="PrintDiv"><i class="fas fa-file-pdf"></i> PDF</button>
+                </div>
+            </div>
+
+            <hr />
+
+            <!-- Report Section -->
+            <div id="printable-form">
+                <div class="text-center mb-4">
+                    <h5>@company.CompanyName</h5>
+                    <p>@company.Address</p>
+                    <p>@company.PhoneNo</p>
+                    <h6>Trail Balance</h6>
+                    <p>From @fromDate.ToShortDateString() To @toDate.ToShortDateString()</p>
+                </div>
+
+                <table class="table table-bordered">
+                    <thead class="thead-light">
+                        <tr>
+                            <th>Account Group</th>
+                            <th class="text-right">Opening Balance</th>
+                            <th class="text-right">Debit</th>
+                            <th class="text-right">Credit</th>
+                            <th class="text-right">Closing Balance</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @if (listModel != null && listModel.Any())
+                        {
+                            decimal totalDebit = 0;
+                            decimal totalCredit = 0;
+                            decimal totalBalance = 0;
+
+                            foreach (var group in listModel) // Loop through each account group
+                            {
+                                // Accumulate totals for debit, credit, and balance
+                                totalDebit += group.Debit;
+                                totalCredit += group.Credit;
+
+                                <tr>
+                                    <td>@group.AccountGroupName</td> <!-- Display Account Group -->
+                                    <td class="text-right">@group.OpeningBalance</td>
+                                    <td class="text-right">@group.Debit.ToString("N2")</td>
+                                    <td class="text-right">@group.Credit.ToString("N2")</td>
+                                    <td class="text-right">@group.Balance</td>
+                                </tr>
+                            }
+
+                            <!-- Display grand total row -->
+                            <tr class="font-weight-bold">
+                                <td class="text-right" colspan="2">Grand Total</td>
+                                <td class="text-right">@totalDebit.ToString("N2")</td>
+                                <td class="text-right">@totalCredit.ToString("N2")</td>
+                                <td class="text-right">@totalBalance</td>
+                            </tr>
+                        }
+                        else
+                        {
+                            <tr>
+                                <td colspan="5" class="text-center">No data available</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+
+
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    DateTime fromDate;
+    DateTime toDate;
+    IList<TrialBalanceView> listModel;
+    CompanyView company = new CompanyView();
+
+    protected override async Task OnInitializedAsync()
+    {
+        company = await companyService.GetAllCompaniesByIdAsync(1);
+        fromDate = DateTime.UtcNow.AddDays(-1);
+        toDate = DateTime.UtcNow;
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        // try
+        // {
+            listModel = await reportService.GetTrialBalanceAsync(fromDate, toDate);
+            StateHasChanged();
+        // }
+        // catch (Exception ex)
+        // {
+        //     Snackbar.Add($"Error: {ex.Message}", MudBlazor.Severity.Error);
+        // }
+    }
+
+    private async Task PrintDiv()
+    {
+        await JsRuntime.InvokeVoidAsync("printDiv", "printable-form");
+    }
+
+    private async Task ExportToExcel()
+    {
+        await JsRuntime.InvokeVoidAsync("exportToExcel", "printable-form");
+    }
+}

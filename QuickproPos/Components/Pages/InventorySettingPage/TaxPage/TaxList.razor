@@ -1,0 +1,230 @@
+﻿@inject TaxService taxService
+@inject MudBlazor.ISnackbar Snackbar
+@inject IJSRuntime JsRuntime
+
+<div class="container mt-4">
+    <!-- Header Section -->
+    <div class="row align-items-center mb-3">
+        <div class="col">
+            <h4>Tax</h4>
+        </div>
+        <div class="col text-end">
+            <button class="btn btn-primary" @onclick="ShowModal">
+                <i class="fas fa-plus me-2"></i> Create
+            </button>
+        </div>
+    </div>
+
+    <!-- Table Section -->
+    <div class="row">
+        <div class="col">
+            <div class="table-responsive">
+                <MudTable Items="@listTax" Dense="@dense" Hover="@hover">
+
+                    <HeaderContent>
+                        <MudTh>Tax NAME</MudTh>
+                        <MudTh>RATE(%)</MudTh>
+                        <MudTh>ACTION</MudTh>
+                    </HeaderContent>
+                    <RowTemplate>
+                        <MudTd DataLabel="TaxName" Style="width:900px;">@context.TaxName</MudTd>
+                        <MudTd DataLabel="Rate">@context.Rate</MudTd>
+                        <MudTd DataLabel="">
+                            <div class="d-flex justify-content-start">
+                                <button class="btn btn-warning btn-sm me-2" @onclick="() => Edit(context.TaxId)">
+                                    <i class="fas fa-edit"></i>
+                                </button>
+                                <button class="btn btn-danger btn-sm" @onclick="() => Delete(context.TaxId)">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </div>
+                        </MudTd>
+                    </RowTemplate>
+                    <PagerContent>
+                        <MudTablePager />
+                    </PagerContent>
+                </MudTable>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal -->
+    @if (IsModalVisible)
+    {
+        <div class="modal fade show d-block" style="background-color: rgba(0, 0, 0, 0.5);">
+            <div class="modal-dialog">
+                <EditForm Model="tax" OnValidSubmit="Save">
+                    <DataAnnotationsValidator />
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title">@ModalTitle</h5>
+                            <button type="button" class="btn-close" @onclick="CloseModal"></button>
+                        </div>
+                        <div class="modal-body">
+                            <div class="mb-3">
+                                <label for="TaxName" class="form-label">Tax Name</label>
+                                <input type="text" id="TaxName" class="form-control" @bind="tax.TaxName" placeholder="Enter Tax name">
+                                <ValidationMessage For="@(() => tax.TaxName)" />
+                            </div>
+                            <div class="mb-3">
+                                <label for="subTaxs" class="form-label">No. Of Decimal</label>
+                                <input type="number" id="subTaxs" class="form-control" @bind="tax.Rate" placeholder="">
+                                <ValidationMessage For="@(() => tax.Rate)" />
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" @onclick="CloseModal">Cancel</button>
+                            <button type="submit" class="btn btn-primary">Save</button>
+                        </div>
+                    </div>
+                </EditForm>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    private bool dense = true;
+    private bool hover = true;
+    private Tax tax = new();
+    private List<Tax> listTax = new();
+    private bool IsModalVisible = false;
+    private string ModalTitle = "Create Tax";
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        try
+        {
+            listTax = await taxService.GetAllTaxsAsync();
+            await Reset();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error loading data: {ex.Message}", Severity.Error);
+        }
+    }
+    private async Task Reset()
+    {
+        IsModalVisible = false;
+        tax.TaxId = 0;
+        tax.TaxName = string.Empty;
+        tax.Rate = 0;
+        tax.AddedDate = DateTime.UtcNow;
+    }
+
+    private async Task ShowModal()
+    {
+        ModalTitle = "Create Tax";
+        await Reset();
+        IsModalVisible = true;
+    }
+
+    private async Task Edit(int id)
+    {
+        try
+        {
+            ModalTitle = "Edit Tax";
+            tax = await taxService.GetTaxByIdAsync(id);
+            if(tax.TaxName  !="NA")
+            {
+                IsModalVisible = true;
+            }
+            else
+            {
+                Snackbar.Add("Default value cannot be delete or update", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error fetching Tax: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task Delete(int id)
+    {
+        try
+        {
+            // Show a confirmation dialog to the user
+            bool confirmed = await JsRuntime.InvokeAsync<bool>("confirm", "Are you sure you want to delete this Tax?");
+
+            if (!confirmed)
+            {
+                return; // User canceled the action
+            }
+
+            tax = await taxService.GetTaxByIdAsync(id);
+            if (tax.TaxName != "NA")
+            {
+                bool isDeleted = await taxService.DeleteTaxAsync(id);
+
+                if (isDeleted == true)
+                {
+                    Snackbar.Add("Tax deleted successfully.", Severity.Success);
+                    await LoadData(); // Reload the data after successful deletion
+                }
+                else
+                {
+                    Snackbar.Add("Tax cannot be deleted as it is being used.", Severity.Error);
+                }
+            }
+            else
+            {
+                Snackbar.Add("Default value cannot be delete or update", Severity.Error);
+            }
+            // Attempt to delete the Tax
+            
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"An error occurred while deleting the Tax: {ex.Message}", Severity.Error);
+        }
+    }
+
+
+    private async Task CloseModal()
+    {
+        IsModalVisible = false;
+    }
+
+    private async Task Save()
+    {
+        try
+        {
+            if (tax.TaxId == 0)
+            {
+                int value = await taxService.AddTaxAsync(tax);
+                if(value > 0)
+                {
+                    Snackbar.Add("Tax created successfully", Severity.Success);
+                    await LoadData();
+                }
+                else
+                {
+                    Snackbar.Add("Tax name already exists.", Severity.Info);
+                }
+            }
+            else
+            {
+                bool isUpdated = await taxService.UpdateTaxAsync(tax);
+                if (isUpdated == true)
+                {
+                    Snackbar.Add("Tax updated successfully", Severity.Success);
+                    await LoadData();
+                }
+                else
+                {
+                    Snackbar.Add("Tax name already exists.", Severity.Info);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error saving Tax: {ex.Message}", Severity.Success);
+        }
+    }
+}

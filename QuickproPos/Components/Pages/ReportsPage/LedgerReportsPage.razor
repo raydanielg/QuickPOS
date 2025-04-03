@@ -1,0 +1,159 @@
+﻿@page "/report/ledger-report"
+@inject CompanyService companyService
+@inject InvoiceSettingService invoiceSettingService
+@inject IPrintingService PrintingService
+@inject ReportService reportService
+@inject AccountLedgerService accountledgerService
+@inject MudBlazor.ISnackbar Snackbar
+@inject IJSRuntime JsRuntime
+
+<PageTitle>Ledger Report</PageTitle>
+<div class="container mt-4">
+    <div class="card">
+        <div class="card-header">
+            <h4 class="text-center">Ledger Report</h4>
+        </div>
+        <div class="card-body">
+            <!-- Filter Section -->
+            <div class="row mb-3">
+                <div class="col-md-2">
+                    <label>From Date</label>
+                    <InputDate @bind-Value="@fromDate" class="form-control" />
+                </div>
+                <div class="col-md-2">
+                    <label>To Date</label>
+                    <InputDate @bind-Value="@toDate" class="form-control" />
+                </div>
+                <div class="col-md-4">
+                    <label>Party</label>
+                    <select class="form-select" @bind="intLedgerId">
+                        <option value="0">All</option>
+                        @if (listLedger != null)
+                        {
+                            @foreach (var supplier in listLedger)
+                            {
+                                <option value="@supplier.LedgerId">@supplier.LedgerName</option>
+                            }
+                        }
+                    </select>
+                </div>
+                <div class="col-md-4 d-flex align-items-end">
+                    <button class="btn btn-primary me-2" @onclick="LoadData"><i class="fas fa-search"></i> Search</button>
+                    <button class="btn btn-secondary me-2" @onclick="@(_ => PrintingService.Print("printable-form", PrintType.Html))"><i class="fas fa-print"></i> Print</button>
+                    <button class="btn btn-success me-2" @onclick="ExportToExcel"><i class="fas fa-file-excel"></i>Excel</button>
+                    <button class="btn btn-danger" @onclick="PrintDiv"><i class="fas fa-file-pdf"></i> PDF</button>
+                </div>
+            </div>
+
+            <hr />
+
+            <!-- Report Section -->
+            <div id="printable-form">
+                <div class="text-center mb-4">
+                    <h5>@company.CompanyName</h5>
+                    <p>@company.Address</p>
+                    <p>@company.PhoneNo</p>
+                    <h6>Daybook</h6>
+                    <p>From @fromDate.ToShortDateString() To @toDate.ToShortDateString()</p>
+                </div>
+                <table class="table table-bordered">
+                    <thead class="thead-light">
+                        <tr>
+                            <th>Party Name</th>
+                            <th class="text-right">Opening Balance</th>
+                            <th class="text-right">Debit</th>
+                            <th class="text-right">Credit</th>
+                            <th class="text-right">Closing Balance</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @if (listModel != null && listModel.Any())
+                        {
+                            decimal totalDebit = 0;
+                            decimal totalCredit = 0;
+                            decimal totalBalance = 0;
+
+                            foreach (var party in listModel)
+                            {
+                                totalDebit += party.Debit;
+                                totalCredit += party.Credit;
+                                totalBalance += party.ClosingBalance;
+
+                                <tr>
+                                    <td>@party.LedgerName</td> <!-- Display Party Name -->
+                                    <td class="text-right">@party.OpeningBalance.ToString("N2")</td>
+                                    <td class="text-right">@party.Debit.ToString("N2")</td>
+                                    <td class="text-right">@party.Credit.ToString("N2")</td>
+                                    <td class="text-right">@party.ClosingBalance.ToString("N2")</td>
+                                </tr>
+                            }
+
+                            <!-- Display grand total row -->
+                            <tr class="font-weight-bold">
+                                <td class="text-right" colspan="2">Grand Total</td>
+                                <td class="text-right">@totalDebit.ToString("N2")</td>
+                                <td class="text-right">@totalCredit.ToString("N2")</td>
+                                <td class="text-right">@totalBalance.ToString("N2")</td>
+                            </tr>
+                        }
+                        else
+                        {
+                            <tr>
+                                <td colspan="5" class="text-center">No data available</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+
+
+
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    DateTime fromDate = DateTime.UtcNow.AddDays(-1);
+    DateTime toDate = DateTime.UtcNow;
+    List<PartyLedgerView> listModel;
+    CompanyView company = new CompanyView();
+    IList<AccountLedgerView> listLedger;
+    int intLedgerId = 0;
+    int intvouchertypeId = 0;
+
+    protected override async Task OnInitializedAsync()
+    {
+        company = await companyService.GetAllCompaniesByIdAsync(1);
+        listLedger = await accountledgerService.GetAllAccountLedgersAsync();
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        try
+        {
+            if (intLedgerId != 0)
+            {
+                listModel = await reportService.GetPartyWiseLedgerReportAsync(fromDate, toDate, intLedgerId);
+            }
+            else
+            {
+                Snackbar.Add("Choose party", MudBlazor.Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error: {ex.Message}", MudBlazor.Severity.Error);
+        }
+    }
+
+    private async Task PrintDiv()
+    {
+        await JsRuntime.InvokeVoidAsync("printDiv", "printable-form");
+    }
+
+    private async Task ExportToExcel()
+    {
+        await JsRuntime.InvokeVoidAsync("exportToExcel", "printable-form");
+    }
+}

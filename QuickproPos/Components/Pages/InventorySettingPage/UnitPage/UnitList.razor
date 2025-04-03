@@ -1,0 +1,215 @@
+﻿@page "/unit"
+@inject UnitService UnitService
+@inject MudBlazor.ISnackbar Snackbar
+@inject IJSRuntime JsRuntime
+
+<div class="container mt-4">
+    <!-- Header Section -->
+    <div class="row align-items-center mb-3">
+        <div class="col">
+            <h4>Units</h4>
+        </div>
+        <div class="col text-end">
+            <button class="btn btn-primary" @onclick="ShowModal">
+                <i class="fas fa-plus me-2"></i> Create
+            </button>
+        </div>
+    </div>
+
+    <!-- Table Section -->
+    <div class="row">
+        <div class="col">
+            <div class="table-responsive">
+                <MudTable Items="@listUnit" Dense="@dense" Hover="@hover">
+
+                    <HeaderContent>
+                        <MudTh>Unit NAME</MudTh>
+                        <MudTh>NO.OF.DECIMAL</MudTh>
+                        <MudTh>ACTION</MudTh>
+                    </HeaderContent>
+                    <RowTemplate>
+                        <MudTd DataLabel="UnitName" Style="width:900px;">@context.UnitName</MudTd>
+                        <MudTd DataLabel="NoOfDecimalplaces">@context.NoOfDecimalplaces</MudTd>
+                        <MudTd DataLabel="">
+                            <div class="d-flex justify-content-start">
+                                <button class="btn btn-warning btn-sm me-2" @onclick="() => Edit(context.UnitId)">
+                                    <i class="fas fa-edit"></i>
+                                </button>
+                                <button class="btn btn-danger btn-sm" @onclick="() => Delete(context.UnitId)">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </div>
+                        </MudTd>
+                    </RowTemplate>
+                    <PagerContent>
+                        <MudTablePager />
+                    </PagerContent>
+                </MudTable>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal -->
+    @if (IsModalVisible)
+    {
+        <div class="modal fade show d-block" style="background-color: rgba(0, 0, 0, 0.5);">
+            <div class="modal-dialog">
+                <EditForm Model="Unit" OnValidSubmit="Save">
+                    <DataAnnotationsValidator />
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title">@ModalTitle</h5>
+                            <button type="button" class="btn-close" @onclick="CloseModal"></button>
+                        </div>
+                        <div class="modal-body">
+                            <div class="mb-3">
+                                <label for="UnitName" class="form-label">Unit Name</label>
+                                <input type="text" id="UnitName" class="form-control" @bind="Unit.UnitName" placeholder="Enter Unit name">
+                                <ValidationMessage For="@(() => Unit.UnitName)" />
+                            </div>
+                            <div class="mb-3">
+                                <label for="subUnits" class="form-label">No. Of Decimal</label>
+                                <input type="number" id="subUnits" class="form-control" @bind="Unit.NoOfDecimalplaces" placeholder="Enter no. of decimal places">
+                                <ValidationMessage For="@(() => Unit.NoOfDecimalplaces)" />
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" @onclick="CloseModal">Cancel</button>
+                            <button type="submit" class="btn btn-primary">Save</button>
+                        </div>
+                    </div>
+                </EditForm>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    private bool dense = true;
+    private bool hover = true;
+    private Unit Unit = new();
+    private List<Unit> listUnit = new();
+    private bool IsModalVisible = false;
+    private string ModalTitle = "Create Unit";
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        try
+        {
+            listUnit = await UnitService.GetAllUnitsAsync();
+            await Reset();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error loading data: {ex.Message}", Severity.Error);
+        }
+    }
+    private async Task Reset()
+    {
+        IsModalVisible = false;
+        Unit.UnitId = 0;
+        Unit.UnitName = string.Empty;
+        Unit.NoOfDecimalplaces = 0;
+        Unit.AddedDate = DateTime.UtcNow;
+    }
+
+    private async Task ShowModal()
+    {
+        ModalTitle = "Create Unit";
+        await Reset();
+        IsModalVisible = true;
+    }
+
+    private async Task Edit(int id)
+    {
+        try
+        {
+            ModalTitle = "Edit Unit";
+            Unit = await UnitService.GetUnitByIdAsync(id);
+            IsModalVisible = true;
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error fetching Unit: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task Delete(int id)
+    {
+        try
+        {
+            // Show a confirmation dialog to the user
+            bool confirmed = await JsRuntime.InvokeAsync<bool>("confirm", "Are you sure you want to delete this Unit?");
+
+            if (!confirmed)
+            {
+                return; // User canceled the action
+            }
+
+            // Attempt to delete the Unit
+            bool isDeleted = await UnitService.DeleteUnitAsync(id);
+
+            if (isDeleted == true)
+            {
+                Snackbar.Add("Unit deleted successfully.", Severity.Success);
+                await LoadData(); // Reload the data after successful deletion
+            }
+            else
+            {
+                Snackbar.Add("Unit cannot be deleted as it is being used.", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"An error occurred while deleting the Unit: {ex.Message}", Severity.Error);
+        }
+    }
+
+
+    private async Task CloseModal()
+    {
+        IsModalVisible = false;
+    }
+
+    private async Task Save()
+    {
+        try
+        {
+            if (Unit.UnitId == 0)
+            {
+                int value = await UnitService.AddUnitAsync(Unit);
+                if(value > 0)
+                {
+                    Snackbar.Add("Unit created successfully", Severity.Success);
+                    await LoadData();
+                }
+                else
+                {
+                    Snackbar.Add("Unit name already exists.", Severity.Info);
+                }
+            }
+            else
+            {
+               bool isUpdated = await UnitService.UpdateUnitAsync(Unit);
+                if (isUpdated == true)
+                {
+                    Snackbar.Add("Unit updated successfully", Severity.Success);
+                    await LoadData();
+                }
+                else
+                {
+                    Snackbar.Add("Unit name already exists.", Severity.Info);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error saving Unit: {ex.Message}", Severity.Success);
+        }
+    }
+}

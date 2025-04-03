@@ -1,0 +1,24 @@
+﻿<div class="d-none d-md-block bg-primary py-1.5 px-2 rounded" style="width:280px;">
+    <span class="curr_datetime text-white fw-bold">@currentDateTime.ToString("MM/dd/yyyy hh:mm:ss tt")</span>
+</div>
+
+@code {
+    private DateTime currentDateTime = DateTime.Now; // Initial time
+
+    protected override void OnInitialized()
+    {
+        var timer = new System.Timers.Timer(1000); // Timer set to 1 second
+        timer.Elapsed += UpdateTime; // Event to update time
+        timer.AutoReset = true;
+        timer.Enabled = true;
+    }
+
+    private void UpdateTime(object sender, System.Timers.ElapsedEventArgs e)
+    {
+        InvokeAsync(() =>
+        {
+            currentDateTime = DateTime.Now; // Update current time
+            StateHasChanged(); // Notify UI of the update
+        });
+    }
+}

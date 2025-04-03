@@ -1,0 +1,181 @@
+﻿@inject InvoiceSettingService invoiceSettingService
+@inject MudBlazor.ISnackbar Snackbar
+@inject IJSRuntime JsRuntime
+
+<div class="container mt-4">
+    <!-- Header Section -->
+    <div class="row align-items-center mb-3">
+        <div class="col">
+            <h4>Invoice Setting</h4>
+        </div>
+        <div class="col text-end">
+        </div>
+    </div>
+
+    <!-- Table Section -->
+    <div class="row">
+        <div class="col">
+            <div class="table-responsive">
+                <MudTable Items="@listInvoiceSetting" Dense="@dense" Hover="@hover">
+
+                    <HeaderContent>
+                        <MudTh>VOUCHER TYPE</MudTh>
+                        <MudTh>PREFIX</MudTh>
+                        <MudTh>SURFIX</MudTh>
+                        <MudTh>START INDEX</MudTh>
+                        <MudTh></MudTh>
+                    </HeaderContent>
+                    <RowTemplate>
+                        <MudTd DataLabel="VoucherTypeName" Style="width:700px;">@context.VoucherTypeName</MudTd>
+                        <MudTd DataLabel="Prefix">@context.Prefix</MudTd>
+                        <MudTd DataLabel="Suffix">@context.Suffix</MudTd>
+                        <MudTd DataLabel="City">@context.StartIndex</MudTd>
+                        <MudTd DataLabel="">
+                            <div class="d-flex justify-content-start">
+                                <button class="btn btn-warning btn-sm me-2" @onclick="() => Edit(context.VoucherTypeId)">
+                                    <i class="fas fa-edit"></i>
+                                </button>
+                            </div>
+                        </MudTd>
+                    </RowTemplate>
+                    <PagerContent>
+                        <MudTablePager />
+                    </PagerContent>
+                </MudTable>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal -->
+    @if (IsModalVisible)
+    {
+        <div class="modal fade show d-block" style="background-color: rgba(0, 0, 0, 0.5);">
+            <div class="modal-dialog">
+                <EditForm Model="InvoiceSetting" OnValidSubmit="Save">
+                    <DataAnnotationsValidator />
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title">@ModalTitle</h5>
+                            <button type="button" class="btn-close" @onclick="CloseModal"></button>
+                        </div>
+                        <div class="modal-body">
+                            <div class="mb-3">
+                                <label class="form-label">Voucher Type</label>
+                                <input type="text" class="form-control" @bind="InvoiceSetting.VoucherTypeName" placeholder="Enter voucher type name">
+                                <ValidationMessage For="@(() => InvoiceSetting.VoucherTypeName)" />
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Prefix</label>
+                                <input type="text" class="form-control" @bind="InvoiceSetting.Prefix" placeholder=" Enter prefix">
+                                <ValidationMessage For="@(() => InvoiceSetting.Prefix)" />
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Suffix</label>
+                                <input type="text" class="form-control" @bind="InvoiceSetting.Suffix" placeholder="Enter suffix">
+                                <ValidationMessage For="@(() => InvoiceSetting.Suffix)" />
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Start Index</label>
+                                <input type="text" class="form-control" @bind="InvoiceSetting.StartIndex" placeholder="">
+                                <ValidationMessage For="@(() => InvoiceSetting.StartIndex)" />
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" @onclick="CloseModal">Cancel</button>
+                            <button type="submit" class="btn btn-primary">Save</button>
+                        </div>
+                    </div>
+                </EditForm>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    private bool dense = true;
+    private bool hover = true;
+    private InvoiceSetting InvoiceSetting = new();
+    private List<InvoiceSetting> listInvoiceSetting = new();
+    private bool IsModalVisible = false;
+    private string ModalTitle = "Create InvoiceSetting";
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        try
+        {
+            listInvoiceSetting = await invoiceSettingService.GetAllInvoiceSettingsAsync();
+            await Reset();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error loading data: {ex.Message}", Severity.Error);
+        }
+    }
+    private async Task Reset()
+    {
+        IsModalVisible = false;
+        InvoiceSetting.VoucherTypeId = 0;
+        InvoiceSetting.VoucherTypeName = string.Empty;
+        InvoiceSetting.Prefix = string.Empty;
+        InvoiceSetting.Suffix = string.Empty;
+        InvoiceSetting.StartIndex = 1;
+    }
+
+    private async Task ShowModal()
+    {
+        ModalTitle = "Create InvoiceSetting";
+        await Reset();
+        IsModalVisible = true;
+    }
+
+    private async Task Edit(int id)
+    {
+        try
+        {
+            ModalTitle = "Edit InvoiceSetting";
+            InvoiceSetting = await invoiceSettingService.GetInvoiceSettingByIdAsync(id);
+            IsModalVisible = true;
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error fetching InvoiceSetting: {ex.Message}", Severity.Error);
+        }
+    }
+    private async Task CloseModal()
+    {
+        IsModalVisible = false;
+    }
+
+    private async Task Save()
+    {
+        try
+        {
+            if (InvoiceSetting.VoucherTypeId == 0)
+            {
+                
+            }
+            else
+            {
+                bool isUpdated = await invoiceSettingService.UpdateInvoiceSettingAsync(InvoiceSetting);
+                if (isUpdated == true)
+                {
+                    Snackbar.Add("InvoiceSetting updated successfully", Severity.Success);
+                    await LoadData();
+                }
+                else
+                {
+                    Snackbar.Add("InvoiceSetting name already exists.", Severity.Info);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error saving InvoiceSetting: {ex.Message}", Severity.Success);
+        }
+    }
+}

@@ -1,0 +1,142 @@
+﻿@page "/report/profit_loss"
+@inject CompanyService companyService
+@inject IPrintingService PrintingService
+@inject ReportService reportService
+@inject MudBlazor.ISnackbar Snackbar
+@inject IJSRuntime JsRuntime
+
+<div class="container mt-4">
+    <div class="card">
+        <div class="card-header">
+            <h4 class="text-center">Profit N Loss</h4>
+        </div>
+        <div class="card-body">
+            <!-- Filter Section -->
+            <div class="row mb-3">
+                <div class="col-md-2">
+                    <label>From Date</label>
+                    <InputDate @bind-Value="@fromDate" class="form-control" />
+                </div>
+                <div class="col-md-2">
+                    <label>To Date</label>
+                    <InputDate @bind-Value="@toDate" class="form-control" />
+                </div>
+                <div class="col-md-4 d-flex align-items-end">
+                    <button class="btn btn-primary me-2" @onclick="LoadData"><i class="fas fa-search"></i> Search</button>
+                    <button class="btn btn-secondary me-2" @onclick="@(_ => PrintingService.Print("printable-form", PrintType.Html))"><i class="fas fa-print"></i> Print</button>
+                    <button class="btn btn-success me-2" @onclick="ExportToExcel"><i class="fas fa-file-excel"></i>Excel</button>
+                    <button class="btn btn-danger" @onclick="PrintDiv"><i class="fas fa-file-pdf"></i> PDF</button>
+                </div>
+            </div>
+
+            <hr />
+
+            <!-- Report Section -->
+            <div id="printable-form">
+                <div class="text-center mb-4">
+                    <h5>@company.CompanyName</h5>
+                    <p>@company.Address</p>
+                    <p>@company.PhoneNo</p>
+                    <h6>Profit N Loss</h6>
+                    <p>From @fromDate.ToShortDateString() To @toDate.ToShortDateString()</p>
+                </div>
+
+                @if (profitLossReport == null)
+                {
+                    <p>Loading...</p>
+                }
+                else
+                {
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Particulars</th>
+                                <th>Amount</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- Incomes Section -->
+                            <tr class="header">
+                                <td colspan="2">Incomes</td>
+                            </tr>
+                            @foreach (var income in profitLossReport.Incomes)
+                            {
+                                <tr>
+                                    <td>@income.Key</td>
+                                    <td>@income.Value</td>
+                                </tr>
+                            }
+                            <tr class="total">
+                                <td>Total Income</td>
+                                <td>@profitLossReport.Incomes.Values.Sum()</td>
+                            </tr>
+
+                            <!-- Expenses Section -->
+                            <tr class="header">
+                                <td colspan="2">Expenses</td>
+                            </tr>
+                            @foreach (var expense in profitLossReport.Expenses)
+                            {
+                                <tr>
+                                    <td>@expense.Key</td>
+                                    <td>@expense.Value</td>
+                                </tr>
+                            }
+                            <tr class="total">
+                                <td>Total Expenses</td>
+                                <td>@profitLossReport.Expenses.Values.Sum()</td>
+                            </tr>
+
+                            <!-- Net Profit -->
+                            <tr class="net-profit">
+                                <td>Net Profit (Incomes - Expenses)</td>
+                                <td>Rs @profitLossReport.NetProfit</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                }
+
+
+
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    DateTime fromDate;
+    DateTime toDate;
+    ProfitLossReportView profitLossReport { get; set; }
+    CompanyView company = new CompanyView();
+
+    protected override async Task OnInitializedAsync()
+    {
+        company = await companyService.GetAllCompaniesByIdAsync(1);
+        fromDate = DateTime.UtcNow.AddDays(-1);
+        toDate = DateTime.UtcNow;
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        // try
+        // {
+        profitLossReport = await reportService.GetFormattedProfitLossReportAsync(fromDate, toDate);
+            StateHasChanged();
+        // }
+        // catch (Exception ex)
+        // {
+        //     Snackbar.Add($"Error: {ex.Message}", MudBlazor.Severity.Error);
+        // }
+    }
+
+    private async Task PrintDiv()
+    {
+        await JsRuntime.InvokeVoidAsync("printDiv", "printable-form");
+    }
+
+    private async Task ExportToExcel()
+    {
+        await JsRuntime.InvokeVoidAsync("exportToExcel", "printable-form");
+    }
+}

@@ -1,0 +1,391 @@
+﻿@page "/dashboard"
+@using System.Text.Json
+@inject FinancialYearService financialyearService
+@using static QuickproPos.Data.SettingView.DataInfo
+@inject NavigationManager NavigationManager
+@inject CompanyService companyService
+@inject ReportService reportService
+@inject MudBlazor.ISnackbar Snackbar
+@inject IJSRuntime JSRuntime
+
+<div class="container mt-4">
+    <div class="row">
+        <!-- Filters Section -->
+        <div class="col-lg-3 col-sm-6 col-12 mb-3">
+            <select class="form-select" @bind="strYear" @onclick="LoadData">
+                @if (listInfo != null)
+                {
+                    @foreach (var item in listInfo)
+                    {
+                        <option value="@item.Name">@item.Name</option>
+                    }
+                }
+            </select>
+        </div>
+        <div class="col-lg-2 col-sm-6 col-12 mb-3">
+            <InputDate @bind-Value="@fromDate" class="form-control" />
+        </div>
+        <div class="col-lg-2 col-sm-6 col-12 mb-3">
+            <InputDate @bind-Value="@toDate" class="form-control" />
+        </div>
+        <div class="col-lg-2 col-sm-6 col-12 mb-3">
+            <a class="btn btn-primary btn-block" @onclick="LoadData">Search</a>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Financial Overview Section -->
+        <div class="col-lg-8">
+            <div class="row g-3">
+                <!-- Total Receivable -->
+                <div class="col-md-4">
+                    <div class="card shadow-sm border-0 h-100">
+                        <div class="card-body">
+                            <div class="d-flex align-items-center mb-2">
+                                <i class="bi bi-wallet2 text-primary fs-4 me-2"></i>
+                                <h6 class="mb-0">Total Receivable</h6>
+                            </div>
+                            <h4 class="fw-bold mb-0">@company?.CurrencySymbol @listReceiable?.Sum(r => r.BalanceDue)</h4>
+                            <small class="text-success">
+                                <i class="bi bi-arrow-down-circle me-1"></i> From @listReceiable?.Count Parties
+                            </small>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Total Payable -->
+                <div class="col-md-4">
+                    <div class="card shadow-sm border-0 h-100">
+                        <div class="card-body">
+                            <div class="d-flex align-items-center mb-2">
+                                <i class="bi bi-credit-card text-danger fs-4 me-2"></i>
+                                <h6 class="mb-0">Total Payable</h6>
+                            </div>
+                            <h4 class="fw-bold mb-0">@company?.CurrencySymbol @listPayable?.Sum(r => r.BalanceDue)</h4>
+                            <small class="text-danger">
+                                <i class="bi bi-arrow-up-circle me-1"></i> From @listPayable?.Count Parties
+                            </small>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Total Sale -->
+                <div class="col-md-4">
+                    <div class="card shadow-sm border-0 h-100">
+                        <div class="card-body">
+                            <div class="d-flex align-items-center mb-2">
+                                <i class="bi bi-bar-chart-line text-success fs-4 me-2"></i>
+                                <h6 class="mb-0">Total Sale</h6>
+                            </div>
+                            <h4 class="fw-bold mb-0">@company?.CurrencySymbol @salespurchase?.TotalSale</h4>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Sales Graph Section -->
+            <div class="card shadow-sm border-0 mt-4">
+                <div class="card-body">
+                    <h6>Sales Graph</h6>
+                    <canvas id="salesChart" class="w-100" style="height: 300px;"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Column Section -->
+        <div class="col-lg-4">
+            <div class="row g-3">
+                <!-- Purchase -->
+                <div class="col-12">
+                    <div class="card shadow-sm border-0">
+                        <div class="card-body">
+                            <div class="d-flex align-items-center mb-2">
+                                <i class="bi bi-box text-warning fs-4 me-2"></i>
+                                <h6 class="mb-0">Purchase</h6>
+                            </div>
+                            <h4 class="fw-bold mb-0">@company?.CurrencySymbol @salespurchase?.TotalPurchase</h4>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Cash in Hand -->
+                <div class="col-12">
+                    <div class="card shadow-sm border-0">
+                        <div class="card-body">
+                            <div class="d-flex align-items-center mb-2">
+                                <i class="bi bi-cash-stack text-info fs-4 me-2"></i>
+                                <h6 class="mb-0">Cash in Hand</h6>
+                            </div>
+                            <h4 class="fw-bold mb-0">@company?.CurrencySymbol @viewcashbank.CashBalance</h4>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Bank Balance -->
+                <div class="col-12">
+                    <div class="card shadow-sm border-0">
+                        <div class="card-body">
+                            <div class="d-flex align-items-center mb-2">
+                                <i class="bi bi-bank text-primary fs-4 me-2"></i>
+                                <h6 class="mb-0">Bank Balance</h6>
+                            </div>
+                            <h4 class="fw-bold mb-0">@company?.CurrencySymbol @viewcashbank.BankBalance</h4>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+@code 
+{
+    string strYear = "Today";
+    private DateInfo info = new DateInfo();
+    private List<DateInfo> listInfo = new List<DateInfo>();
+    private CompanyView company;
+    DateTime fromDate;
+    DateTime toDate;
+    DashboardView salespurchase = new DashboardView();
+    private List<DashboardView> salesData = new List<DashboardView>();
+    DashboardView viewcashbank = new DashboardView();
+    IList<PurchaseMasterView> listPayable;
+    IList<SalesMasterView> listReceiable;
+
+
+    protected override async Task OnInitializedAsync()
+    {
+        fromDate = DateTime.UtcNow.AddDays(-6);
+        toDate = DateTime.UtcNow.AddDays(1);
+        company = await companyService.GetAllCompaniesByIdAsync(1);
+        listInfo = info.GetDateInfo();
+        //await CheckValidDateTime();
+        await LoadData();
+    }
+    private async Task CheckValidDateTime()
+    {
+        DateTime fromFrom1 = company.Date;
+        DateTime toDate1 = company.ExpiryDate;
+        TimeSpan difference1 = toDate1 - fromFrom1;
+        int intDays1 = difference1.Days;
+        //CheckValidationExpiryDate
+        if (DateTime.TryParse(company.ExpiryDate.ToString(), out DateTime expiryDate))
+        {
+            int intDaysRemaining = 0;
+            // Check if the license has not expired yet
+            if (expiryDate > DateTime.UtcNow)
+            {
+                // Calculate the number of days until expiry
+                intDaysRemaining = (expiryDate - DateTime.UtcNow).Days;
+
+                if (intDaysRemaining <= 7 && intDaysRemaining > 0)
+                {
+                    // Warn the user about the upcoming expiry within 7 days
+                    Snackbar.Add($"Your license is going to expire in {intDaysRemaining} days. Please renew your software. Contact: Dreamer IT Solution Pvt Ltd : Whatsapp No: 9779869414235", Severity.Success);
+                }
+                else
+                {
+                    // License is valid but more than 7 days remaining
+                    // Continue using the application or add other logic
+                }
+            }
+            else
+            {
+                // License has expired
+                NavigationManager.NavigateTo("/login");
+                Snackbar.Add($"Your license is going to expire in {intDaysRemaining} days. Please renew your software. Contact: Dreamer IT Solution Pvt Ltd : Whatsapp No: 9779869414235", Severity.Success);
+            }
+        }
+        else
+        {
+            // Handle invalid date format or null ExpiryDate value
+            NavigationManager.NavigateTo("/login");
+            Snackbar.Add("Invalid expiry date. Please contact support.", Severity.Success);
+        }
+    }
+    private async Task LoadData()
+    {
+        try
+        {
+            if (strYear == "Today")
+            {
+                fromDate = DateTime.UtcNow.AddDays(-1);
+                toDate = DateTime.UtcNow;
+            }
+            else if (strYear == "YeartoDate")
+            {
+                fromDate = new DateTime(DateTime.UtcNow.Year, 1, 1);
+                toDate = DateTime.UtcNow;
+            }
+            else if (strYear == "CurrentMonth")
+            {
+                DateTime now = DateTime.UtcNow;
+                fromDate = new DateTime(now.Year, now.Month, 1);
+                toDate = fromDate.AddMonths(1).AddDays(-1);
+            }
+            else if (strYear == "CurrentYear")
+            {
+                int year = DateTime.UtcNow.Year;
+                fromDate = new DateTime(year, 1, 1);
+                toDate = new DateTime(year, 12, 31);
+            }
+            else if (strYear == "LastMonth")
+            {
+                var today = DateTime.UtcNow;
+                var month = new DateTime(today.Year, today.Month, 1);
+                fromDate = month.AddMonths(-1);
+                toDate = month.AddDays(-1);
+            }
+            else if (strYear == "LastQuarter")
+            {
+                DateTime startDate = default(DateTime);
+                DateTime endDate = default(DateTime);
+                string lastQuarter = GetLastQuarterDates(DateTime.UtcNow.Month);
+                SetLastQuarterDates(out startDate, out endDate, lastQuarter);
+            }
+            else if (strYear == "LastYear")
+            {
+                DateTime startDate = default(DateTime);
+                DateTime endDate = default(DateTime);
+                string lastQuarter = GetLastQuarterDates(DateTime.UtcNow.Month);
+                SetLastQuarterDates(out startDate, out endDate, lastQuarter);
+            }
+            else if (strYear == "Last30Days")
+            {
+                fromDate = DateTime.UtcNow.AddDays(-30);
+                toDate = DateTime.UtcNow;
+            }
+            else if (strYear == "Last60Days")
+            {
+                fromDate = DateTime.UtcNow.AddDays(-60);
+                toDate = DateTime.UtcNow;
+            }
+            else if (strYear == "Last90Days")
+            {
+                fromDate = DateTime.UtcNow.AddDays(-90);
+                toDate = DateTime.UtcNow;
+            }
+            else if (strYear == "ThisFinancialYear")
+            {
+                var yearWise = await financialyearService.GetFinancialYearByIdAsync(company.FinancialYearId);
+                if (yearWise != null)
+                {
+                    fromDate = yearWise.FromDate;
+                    toDate = yearWise.ToDate;
+                }
+            }
+            salespurchase = await reportService.SalesPurchaseTotalAsync(fromDate, toDate);
+            viewcashbank = await reportService.CashbankamountAsync(fromDate, toDate);
+            listPayable = await reportService.ToPayAsync(fromDate , toDate);
+            listReceiable = await reportService.ToReceiveAsync(fromDate , toDate);
+            salesData = await reportService.SalesChartAsync(fromDate, toDate);
+            RenderChart();
+        }
+        catch(Exception ex)
+        {
+            throw ex;
+        }
+    }
+    private async Task RenderChart()
+    {
+        var months = salesData.Select(d => d.Month).ToList();
+        var totals = salesData.Select(d => d.GrandTotal).ToList();
+
+        // Serialize data for JavaScript
+        var monthsJson = JsonSerializer.Serialize(months);
+        var totalsJson = JsonSerializer.Serialize(totals);
+
+        // Call JavaScript to render the chart
+        await JSRuntime.InvokeVoidAsync("renderSalesChart", monthsJson, totalsJson);
+    }
+                        private void SetLastQuarterDates(out DateTime startDate, out DateTime endDate, string quarter)
+                        {
+                            int startMonth = 0;
+                            int startYear = DateTime.UtcNow.Year;
+                            int startDay = 1;
+                            int endMonth = 0;
+                            int endYear = DateTime.UtcNow.Year;
+                            int endDay = 31;
+
+                            switch (quarter)
+                            {
+                                case "Q1":
+                                    startMonth = 1;
+                                    endMonth = 3;
+                                    endDay = 30;
+                                    break;
+
+                                case "Q2":
+                                    startMonth = 4;
+                                    endMonth = 6;
+                                    break;
+
+                                case "Q3":
+                                    startMonth = 7;
+                                    endMonth = 9;
+                                    endDay = 30;
+                                    break;
+
+                                case "Q4":
+                                    startMonth = 10;
+                                    startYear = DateTime.UtcNow.Year - 1;
+                                    endMonth = 12;
+                                    endYear = DateTime.UtcNow.Year - 1;
+                                    break;
+                            }
+
+                            startDate = new DateTime(startYear, startMonth, startDay);
+                            endDate = new DateTime(endYear, endMonth, endDay);
+                            fromDate = startDate;
+                            toDate = endDate;
+                        }
+
+                        private string GetLastQuarterDates(int month)
+                        {
+                            string quarter = string.Empty;
+
+                            if (month >= 1 && month <= 3)
+                            {
+                                quarter = "Q4";
+                            }
+                            if (month >= 4 && month <= 6)
+                            {
+                                quarter = "Q1";
+                            }
+                            if (month >= 7 && month <= 9)
+                            {
+                                quarter = "Q2";
+                            }
+                            if (month >= 10 && month <= 12)
+                            {
+                                quarter = "Q3";
+                            }
+
+                            return quarter;
+                        }
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            // await JSRuntime.InvokeVoidAsync("eval", @"
+            //     var ctx = document.getElementById('salesChart').getContext('2d');
+            //     var chart = new Chart(ctx, {
+            //         type: 'line',
+            //         data: {
+            //             labels: ['1 Dec', '4 Dec', '7 Dec', '10 Dec', '13 Dec'],
+            //             datasets: [{
+            //                 label: 'Total Sales',
+            //                 data: [10, 30, 20, 50, 40],
+            //                 borderColor: 'rgba(75, 192, 192, 1)',
+            //                 fill: false
+            //             }]
+            //         },
+            //         options: {
+            //             responsive: true
+            //         }
+            //     });
+            // ");
+        }
+    }
+}

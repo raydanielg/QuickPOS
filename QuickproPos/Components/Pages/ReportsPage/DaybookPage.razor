@@ -1,0 +1,148 @@
+﻿@page "/report/day_book"
+@inject CompanyService companyService
+@inject InvoiceSettingService invoiceSettingService
+@inject IPrintingService PrintingService
+@inject ReportService reportService
+@inject AccountLedgerService accountledgerService
+@inject MudBlazor.ISnackbar Snackbar
+@inject IJSRuntime JsRuntime
+
+<PageTitle>Daybook</PageTitle>
+<div class="container mt-4">
+    <div class="card">
+        <div class="card-header">
+            <h4 class="text-center">Daybook</h4>
+        </div>
+        <div class="card-body">
+            <!-- Filter Section -->
+            <div class="row mb-3">
+                <div class="col-md-2">
+                    <label>From Date</label>
+                    <InputDate @bind-Value="@fromDate" class="form-control" />
+                </div>
+                <div class="col-md-2">
+                    <label>To Date</label>
+                    <InputDate @bind-Value="@toDate" class="form-control" />
+                </div>
+                <div class="col-md-4">
+                    <label>Party</label>
+                    <select class="form-select" @bind="intLedgerId">
+                        <option value="0">All</option>
+                        @if (listLedger != null)
+                        {
+                            @foreach (var supplier in listLedger)
+                            {
+                                <option value="@supplier.LedgerId">@supplier.LedgerName</option>
+                            }
+                        }
+                    </select>
+                </div>
+                <div class="col-md-4 d-flex align-items-end">
+                    <button class="btn btn-primary me-2" @onclick="LoadData"><i class="fas fa-search"></i> Search</button>
+                    <button class="btn btn-secondary me-2" @onclick="@(_ => PrintingService.Print("printable-form", PrintType.Html))"><i class="fas fa-print"></i> Print</button>
+                    <button class="btn btn-success me-2" @onclick="ExportToExcel"><i class="fas fa-file-excel"></i>Excel</button>
+                    <button class="btn btn-danger" @onclick="PrintDiv"><i class="fas fa-file-pdf"></i> PDF</button>
+                </div>
+            </div>
+
+            <hr />
+
+            <!-- Report Section -->
+            <div id="printable-form">
+                <div class="text-center mb-4">
+                    <h5>@company.CompanyName</h5>
+                    <p>@company.Address</p>
+                    <p>@company.PhoneNo</p>
+                    <h6>Daybook</h6>
+                    <p>From @fromDate.ToShortDateString() To @toDate.ToShortDateString()</p>
+                </div>
+                <table class="table table-bordered table-hover">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Voucher Type</th>
+                            <th>Voucher No</th>
+                            <th>Ledger Name</th>
+                            <th>Debit</th>
+                            <th>Credit</th>
+                            <th>Narration</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @if (listModel != null && listModel.Any())
+                        {
+                            foreach (var item in listModel)
+                            {
+                                <tr>
+                                    <td>@item.Date</td>
+                                    <td>@item.VoucherTypeName</td>
+                                    <td>@item.VoucherNo</td>
+                                    <td>@item.LedgerName</td>
+                                    <td>@item.Debit.ToString("N2")</td>
+                                    <td>@item.Credit.ToString("N2")</td>
+                                    <td>@item.Narration</td>
+                                </tr>
+                            }
+                            <tr class="fw-bold">
+                                <td colspan="4">Total</td>
+                                <td>@listModel.Sum(x => x.Debit).ToString("N2")</td>
+                                <td>@listModel.Sum(x => x.Credit).ToString("N2")</td>
+                                <td></td>
+                            </tr>
+                        }
+                        else
+                        {
+                            <tr>
+                                <td colspan="7" class="text-center">No data available for the selected date range.</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+
+
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    DateTime fromDate = DateTime.UtcNow.AddDays(-1);
+    DateTime toDate = DateTime.UtcNow;
+    IList<DaybookReportView> listModel;
+    CompanyView company = new CompanyView();
+    IList<AccountLedgerView> listLedger;
+    IList<InvoiceSetting> listInvoiceSetting;
+    int intLedgerId = 0;
+    int intvouchertypeId = 0;
+
+    protected override async Task OnInitializedAsync()
+    {
+        company = await companyService.GetAllCompaniesByIdAsync(1);
+        listLedger = await accountledgerService.GetAllAccountLedgersAsync();
+        listInvoiceSetting = await invoiceSettingService.GetAllInvoiceSettingsAsync();
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        try
+        {
+            listModel = await reportService.GenerateDaybookReportAsync(fromDate, toDate, intvouchertypeId, intLedgerId);
+            Snackbar.Add("Report loaded successfully!", MudBlazor.Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error: {ex.Message}", MudBlazor.Severity.Error);
+        }
+    }
+
+    private async Task PrintDiv()
+    {
+        await JsRuntime.InvokeVoidAsync("printDiv", "printable-form");
+    }
+
+    private async Task ExportToExcel()
+    {
+        await JsRuntime.InvokeVoidAsync("exportToExcel", "printable-form");
+    }
+}

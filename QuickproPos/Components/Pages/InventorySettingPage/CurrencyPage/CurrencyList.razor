@@ -1,0 +1,218 @@
+﻿@inject CurrencyService currencyService
+@inject MudBlazor.ISnackbar Snackbar
+@inject IJSRuntime JsRuntime
+
+    <!-- Header Section -->
+    <div class="row">
+        <div class="col">
+            <h4>Currency</h4>
+        </div>
+        <div class="col text-end">
+            <button class="btn btn-primary" @onclick="ShowModal">
+                <i class="fas fa-plus me-2"></i> Create
+            </button>
+        </div>
+    </div>
+
+    <!-- Table Section -->
+    <div class="row">
+        <div class="col">
+            <div class="table-responsive">
+                <MudTable Items="@listCurrency" Dense="@dense" Hover="@hover">
+
+                    <HeaderContent>
+                        <MudTh>Currency NAME</MudTh>
+                        <MudTh>SYMBOL</MudTh>
+                        <MudTh>ACTION</MudTh>
+                    </HeaderContent>
+                    <RowTemplate>
+                        <MudTd DataLabel="CurrencyName" Style="width:900px;">@context.CurrencyName</MudTd>
+                        <MudTd DataLabel="CurrencySymbol">@context.CurrencySymbol</MudTd>
+                        <MudTd DataLabel="">
+                            <div class="d-flex justify-content-start">
+                                <button class="btn btn-warning btn-sm me-2" @onclick="() => Edit(context.CurrencyId)">
+                                    <i class="fas fa-edit"></i>
+                                </button>
+                                <button class="btn btn-danger btn-sm" @onclick="() => Delete(context.CurrencyId)">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </div>
+                        </MudTd>
+                    </RowTemplate>
+                    <PagerContent>
+                        <MudTablePager />
+                    </PagerContent>
+                </MudTable>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal -->
+    @if (IsModalVisible)
+    {
+        <div class="modal fade show d-block" style="background-color: rgba(0, 0, 0, 0.5);">
+            <div class="modal-dialog">
+                <EditForm Model="Currency" OnValidSubmit="Save">
+                    <DataAnnotationsValidator />
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title">@ModalTitle</h5>
+                            <button type="button" class="btn-close" @onclick="CloseModal"></button>
+                        </div>
+                        <div class="modal-body">
+                            <div class="mb-3">
+                                <label for="CurrencyName" class="form-label">Currency Name</label>
+                                <input type="text" id="CurrencyName" class="form-control" @bind="Currency.CurrencyName" placeholder="Enter Currency name">
+                                <ValidationMessage For="@(() => Currency.CurrencyName)" />
+                            </div>
+                            <div class="mb-3">
+                                <label for="subCurrencys" class="form-label">Currency Symbol</label>
+                                <input type="text" id="subCurrencys" class="form-control" @bind="Currency.CurrencySymbol" placeholder="Enter currency symbol">
+                                <ValidationMessage For="@(() => Currency.CurrencySymbol)" />
+                            </div>
+                            <div class="mb-3">
+                                <label for="subCurrencys" class="form-label">No.Of.Decimal</label>
+                                <input type="number" id="subCurrencys" class="form-control" @bind="Currency.NoOfDecimalPlaces">
+                                <ValidationMessage For="@(() => Currency.NoOfDecimalPlaces)" />
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" @onclick="CloseModal">Cancel</button>
+                            <button type="submit" class="btn btn-primary">Save</button>
+                        </div>
+                    </div>
+                </EditForm>
+            </div>
+        </div>
+    }
+
+@code {
+    private bool dense = true;
+    private bool hover = true;
+    private Currency Currency = new();
+    private List<Currency> listCurrency = new();
+    private bool IsModalVisible = false;
+    private string ModalTitle = "Create Currency";
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        try
+        {
+            listCurrency = await currencyService.GetAllCurrencysAsync();
+            await Reset();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error loading data: {ex.Message}", Severity.Error);
+        }
+    }
+    private async Task Reset()
+    {
+        IsModalVisible = false;
+        Currency.CurrencyId = 0;
+        Currency.CurrencyName = string.Empty;
+        Currency.CurrencySymbol = string.Empty;
+        Currency.NoOfDecimalPlaces = 0;
+        Currency.AddedDate = DateTime.UtcNow;
+    }
+
+    private async Task ShowModal()
+    {
+        ModalTitle = "Create Currency";
+        await Reset();
+        IsModalVisible = true;
+    }
+
+    private async Task Edit(int id)
+    {
+        try
+        {
+            ModalTitle = "Edit Currency";
+            Currency = await currencyService.GetCurrencyByIdAsync(id);
+            IsModalVisible = true;
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error fetching Currency: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task Delete(int id)
+    {
+        try
+        {
+            // Show a confirmation dialog to the user
+            bool confirmed = await JsRuntime.InvokeAsync<bool>("confirm", "Are you sure you want to delete this Currency?");
+
+            if (!confirmed)
+            {
+                return; // User canceled the action
+            }
+
+            // Attempt to delete the Currency
+            bool isDeleted = await currencyService.DeleteCurrencyAsync(id);
+
+            if (isDeleted == true)
+            {
+                Snackbar.Add("Currency deleted successfully.", Severity.Success);
+                await LoadData(); // Reload the data after successful deletion
+            }
+            else
+            {
+                Snackbar.Add("Currency cannot be deleted as it is being used.", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"An error occurred while deleting the Currency: {ex.Message}", Severity.Error);
+        }
+    }
+
+
+    private async Task CloseModal()
+    {
+        IsModalVisible = false;
+    }
+
+    private async Task Save()
+    {
+        try
+        {
+            if (Currency.CurrencyId == 0)
+            {
+                int value = await currencyService.AddCurrencyAsync(Currency);
+                if(value > 0)
+                {
+                    Snackbar.Add("Currency created successfully", Severity.Success);
+                    await LoadData();
+                }
+                else
+                {
+                    Snackbar.Add("Currency name already exists.", Severity.Info);
+                }
+            }
+            else
+            {
+                bool isUpdated = await currencyService.UpdateCurrencyAsync(Currency);
+                if (isUpdated == true)
+                {
+                    Snackbar.Add("Currency updated successfully", Severity.Success);
+                    await LoadData();
+                }
+                else
+                {
+                    Snackbar.Add("Currency name already exists.", Severity.Info);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error saving Currency: {ex.Message}", Severity.Success);
+        }
+    }
+}

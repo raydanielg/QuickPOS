@@ -1,0 +1,136 @@
+﻿@page "/report/supplier-payable-summary"
+@inject CompanyService companyService
+@inject IPrintingService PrintingService
+@inject ReportService reportService
+@inject AccountLedgerService accountledgerService
+@inject MudBlazor.ISnackbar Snackbar
+@inject IJSRuntime JsRuntime
+
+<PageTitle>Supplier Payable Summary</PageTitle>
+<div class="container mt-4">
+    <div class="card">
+        <div class="card-header text-center">
+            <h4>Supplier Payable Summary</h4>
+        </div>
+        <div class="card-body">
+            <!-- Filter Section -->
+            <div class="row mb-3">
+                <div class="col-md-2">
+                    <label>From Date</label>
+                    <InputDate class="form-control" @bind-Value="fromDate" />
+                </div>
+                <div class="col-md-2">
+                    <label>To Date</label>
+                    <InputDate class="form-control" @bind-Value="toDate" />
+                </div>
+                <div class="col-md-4 d-flex align-items-end">
+                    <button class="btn btn-primary me-2" @onclick="LoadData"><i class="fas fa-search"></i> Search</button>
+                    <button class="btn btn-secondary me-2" @onclick="Print"><i class="fas fa-print"></i> Print</button>
+                    <button class="btn btn-success me-2" @onclick="ExportToExcel"><i class="fas fa-file-excel"></i> Excel</button>
+                    <button class="btn btn-danger" @onclick="PrintToPDF"><i class="fas fa-file-pdf"></i> PDF</button>
+                </div>
+            </div>
+
+            <hr />
+
+            <!-- Report Section -->
+            <div id="printable-form">
+                <div class="text-center mb-4">
+                    <h5>@company.CompanyName</h5>
+                    <p>@company.Address</p>
+                    <p>@company.PhoneNo</p>
+                    <h6>Supplier Payable Summary</h6>
+                </div>
+
+                @if (listModel == null || !listModel.Any())
+                {
+                    <p class="text-center text-muted">No data available for the selected filters.</p>
+                }
+                else
+                {
+                    <table class="table table-bordered table-striped">
+                        <thead class="table-light">
+                            <tr>
+                                <th>S.No</th>
+                                <th>Supplier</th>
+                                <th>Opening Balance</th>
+                                <th>Debit</th>
+                                <th>Credit</th>
+                                <th>Closing Balance</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var item in listModel.Select((value, index) => new { value, index }))
+                            {
+                                <tr>
+                                    <td>@(item.index + 1)</td>
+                                    <td>@item.value.LedgerName</td>
+                                    <td>@item.value.Opening</td>
+                                    <td>@item.value.Debit</td>
+                                    <td>@item.value.Credit</td>
+                                    <td>@item.value.Closing</td>
+                                </tr>
+                            }
+                        </tbody>
+                        <tfoot>
+                            <tr class="table-info">
+                                <td colspan="3" class="text-end fw-bold">Total</td>
+                                <td>@listModel.Sum(i => i.Debit):N2</td>
+                                <td>@listModel.Sum(i => i.Credit):N2</td>
+                                <td>@listModel.Sum(i => i.Op + i.Debit - i.Credit):N2</td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    // Filters
+    DateTime fromDate = DateTime.UtcNow.AddDays(-1);
+    DateTime toDate = DateTime.UtcNow;
+
+    // Data Model
+    IList<LedgerSummaryView> listModel = new List<LedgerSummaryView>();
+    CompanyView company = new CompanyView();
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Load Company Information
+        company = await companyService.GetAllCompaniesByIdAsync(1);
+        await LoadData();
+    }
+
+    // Fetch the Ledger Summary Data
+    private async Task LoadData()
+    {
+        try
+        {
+            listModel = await reportService.GetCustomerLedgerSummaryAsync(fromDate, toDate, 22, 0);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error loading data: {ex.Message}", Severity.Error);
+        }
+    }
+
+    // Printing Functionality
+    private async Task Print()
+    {
+        await PrintingService.Print("printable-form", PrintType.Html);
+    }
+
+    // Export to Excel Functionality
+    private async Task ExportToExcel()
+    {
+        await JsRuntime.InvokeVoidAsync("exportToExcel", "printable-form");
+    }
+
+    // Export to PDF Functionality
+    private async Task PrintToPDF()
+    {
+        await JsRuntime.InvokeVoidAsync("printDiv", "printable-form");
+    }
+}

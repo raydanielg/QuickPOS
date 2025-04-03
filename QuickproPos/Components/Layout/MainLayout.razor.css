@@ -1,0 +1,19 @@
+.dropdown .btn {
+    display: flex;
+    align-items: center;
+    background-color: #f8f9fa; /* Light background */
+    border: none;
+}
+
+.dropdown .dropdown-menu {
+    min-width: 200px; /* Ensure the dropdown has enough width */
+}
+
+.dropdown img {
+    width: 30px;
+    height: 30px;
+    object-fit: cover;
+}
+.fw-bold {
+    color:#000000;
+}
